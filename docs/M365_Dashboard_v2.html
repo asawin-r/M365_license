@@ -614,6 +614,7 @@ function filterEmployees() {
       <td style="white-space:nowrap">
         <button class="btn btn-secondary btn-sm" onclick="openEditEmp('${escHtml(e.id)}')">${e.status === 'พร้อมใช้งาน' ? 'กำหนด' : 'แก้ไข'}</button>
         ${e.status !== 'พร้อมใช้งาน' ? `<button class="btn btn-danger btn-sm" onclick="deleteEmp('${escHtml(e.id)}')">นำออก</button>` : ''}
+        <button class="btn btn-sm" style="background:#7f1d1d;color:#fff" onclick="deleteLicensePermanently('${escHtml(e.id)}')">ลบ</button>
       </td>
     </tr>`).join('');
 }
@@ -700,19 +701,7 @@ document.getElementById('form-emp').addEventListener('submit', function(e) {
       addAuditLog('EDIT','employee', editingEmpId, name, changes);
     }
   } else {
-    // ใช้ slot ว่างก่อน ถ้าไม่มีถึงสร้าง License ใหม่
-    const vacantIdx = emps.findIndex(e => e.status === 'พร้อมใช้งาน');
-    if (vacantIdx >= 0) {
-      const old = emps[vacantIdx];
-      emps[vacantIdx] = {...old, ...data, updated_at: now};
-      addAuditLog('ADD','employee', old.id, name, `กำหนด License #${old.no} (เดิมว่าง) ให้กับพนักงานใหม่`);
-      LS.set('m365_employees', emps);
-      closeModal('modal-emp');
-      renderEmployees();
-      showToast('เพิ่มพนักงานสำเร็จ — ใช้ License ว่าง #' + old.no);
-      return;
-    }
-    // ไม่มี slot ว่าง — เพิ่ม License ใหม่
+    // เพิ่ม License ใหม่เสมอ
     const maxNo = emps.reduce((m,e)=>Math.max(m,e.no||0),0);
     const newEmp = { id: uid(), no: maxNo+1, created_at: now, ...data };
     emps.push(newEmp);
@@ -746,6 +735,21 @@ function deleteEmp(id) {
   addAuditLog('DELETE','employee', id, oldName, `${oldName} ออกจาก License #${emp.no} — เปลี่ยนเป็น พร้อมใช้งาน (License คงอยู่)`);
   renderEmployees();
   showToast(`นำ ${oldName} ออกสำเร็จ — License #${emp.no} พร้อมใช้งาน`);
+}
+
+function deleteLicensePermanently(id) {
+  const emps = LS.get('m365_employees', []);
+  const emp = emps.find(e => e.id === id);
+  if (!emp) return;
+  const label = emp.status !== 'พร้อมใช้งาน'
+    ? `"${emp.name}" (${emp.email})`
+    : `License ว่าง #${emp.no}`;
+  if (!confirm(`ลบ ${label} ออกถาวร?\n\nจำนวน License รวมจะลดลง 1 และไม่สามารถย้อนกลับได้`)) return;
+  const filtered = emps.filter(e => e.id !== id);
+  LS.set('m365_employees', filtered);
+  addAuditLog('DELETE', 'employee', id, emp.name || `License #${emp.no}`, `ลบถาวร License #${emp.no} — เหลือ ${filtered.length} License`);
+  renderEmployees();
+  showToast(`ลบ License #${emp.no} ออกสำเร็จ — เหลือ ${filtered.length} License`);
 }
 
 document.getElementById('btn-add-emp').addEventListener('click', openAddEmp);
@@ -1194,9 +1198,35 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
   });
 });
 
+// ---- Patch: คืน 3 slot ว่างที่ถูกลบออกโดยไม่ตั้งใจ (no.11, 19, 60) ----
+function patchRestoreMissingSlots() {
+  if (localStorage.getItem('m365_patch_restore_11_19_60')) return;
+  const emps = LS.get('m365_employees', []);
+  const now = new Date().toISOString();
+  const toRestore = [
+    {no:11, id:'emp_11', name:'Aunyamanee', email:'aunyamanee.n@scotch.co.th', dept:'HR & IT', position:'', license:'Basic', price:1030, status:'พร้อมใช้งาน', year:2569},
+    {no:19, id:'emp_19', name:'Ruangdet',   email:'ruangdet.c@scotch.co.th',   dept:'HR & IT', position:'', license:'Basic', price:1030, status:'พร้อมใช้งาน', year:2569},
+    {no:60, id:'emp_60', name:'Maleesa',    email:'maleesa.r@scotch.co.th',    dept:'HR & IT', position:'', license:'Standard', price:3427, status:'พร้อมใช้งาน', year:2569},
+  ];
+  let restored = [];
+  toRestore.forEach(m => {
+    if (!emps.find(e => e.no === m.no)) {
+      emps.push({...m, created_at: now, updated_at: now});
+      restored.push(m.no);
+    }
+  });
+  if (restored.length > 0) {
+    emps.sort((a, b) => (a.no || 0) - (b.no || 0));
+    LS.set('m365_employees', emps);
+    addAuditLog('RESTORE', 'employee', '', 'System Patch', `คืน slot ว่างที่หายไป: no. ${restored.join(', ')} — รวมทั้งหมด ${emps.length} License`);
+  }
+  localStorage.setItem('m365_patch_restore_11_19_60', '1');
+}
+
 // ---- Init ----
 function init() {
   seedData();
+  patchRestoreMissingSlots();
   renderDashboard();
   renderEmployees();
 }
