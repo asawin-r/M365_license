@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>M365 License Dashboard v2</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#f3f4f6;color:#1f2937;min-height:100vh}
+.header{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:1rem 1.5rem;display:flex;align-items:center;gap:1rem}
+.header h1{font-size:1.4rem;font-weight:700}
+.header span{font-size:.85rem;opacity:.8}
+.nav{background:#fff;border-bottom:2px solid #e5e7eb;display:flex;gap:0;overflow-x:auto}
+.nav-btn{padding:.75rem 1.25rem;border:none;background:none;cursor:pointer;font-size:.9rem;color:#6b7280;white-space:nowrap;border-bottom:3px solid transparent;transition:.2s}
+.nav-btn:hover{color:#7c3aed;background:#f9f7ff}
+.nav-btn.active{color:#7c3aed;border-bottom-color:#7c3aed;font-weight:600}
+.tab-content{display:none;padding:1.5rem}
+.tab-content.active{display:block}
+.card{background:#fff;border-radius:12px;padding:1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:1rem;margin-bottom:1.5rem}
+.kpi-card{background:#fff;border-radius:12px;padding:1rem;box-shadow:0 1px 4px rgba(0,0,0,.08);border-left:4px solid #7c3aed}
+.kpi-card .label{font-size:.75rem;color:#6b7280;margin-bottom:.25rem}
+.kpi-card .value{font-size:1.6rem;font-weight:700;color:#1f2937}
+.kpi-card .sub{font-size:.75rem;color:#9ca3af;margin-top:.2rem}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:768px){.charts-grid{grid-template-columns:1fr}}
+.chart-card{background:#fff;border-radius:12px;padding:1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.chart-card h3{font-size:.9rem;font-weight:600;color:#374151;margin-bottom:1rem}
+.chart-wrap{position:relative;height:240px}
+.toolbar{display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;align-items:center}
+.toolbar input,.toolbar select{padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:8px;font-size:.875rem;outline:none;background:#fff}
+.toolbar input:focus,.toolbar select:focus{border-color:#7c3aed;box-shadow:0 0 0 2px rgba(124,58,237,.15)}
+.btn{padding:.5rem 1rem;border:none;border-radius:8px;cursor:pointer;font-size:.875rem;font-weight:500;transition:.15s}
+.btn-primary{background:#7c3aed;color:#fff}
+.btn-primary:hover{background:#6d28d9}
+.btn-secondary{background:#f3f4f6;color:#374151}
+.btn-secondary:hover{background:#e5e7eb}
+.btn-danger{background:#fee2e2;color:#dc2626}
+.btn-danger:hover{background:#fecaca}
+.btn-success{background:#dcfce7;color:#16a34a}
+.btn-success:hover{background:#bbf7d0}
+.btn-sm{padding:.3rem .65rem;font-size:.8rem}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.875rem}
+thead th{background:#f9fafb;padding:.65rem .75rem;text-align:left;font-weight:600;color:#374151;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+tbody tr{border-bottom:1px solid #f3f4f6;transition:background .1s}
+tbody tr:hover{background:#faf9ff}
+tbody td{padding:.6rem .75rem;vertical-align:middle}
+.badge{display:inline-block;padding:.2rem .6rem;border-radius:20px;font-size:.75rem;font-weight:600}
+.badge-active{background:#dcfce7;color:#15803d}
+.badge-inactive{background:#fef3c7;color:#b45309}
+.badge-vacant{background:#e0e7ff;color:#4338ca}
+.badge-basic{background:#dbeafe;color:#1d4ed8}
+.badge-standard{background:#ede9fe;color:#7c3aed}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;padding:1.5rem;width:min(520px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h2{font-size:1.1rem;font-weight:700;margin-bottom:1.25rem;color:#1f2937}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.form-group{display:flex;flex-direction:column;gap:.3rem}
+.form-group.full{grid-column:1/-1}
+.form-group label{font-size:.8rem;font-weight:600;color:#374151}
+.form-group input,.form-group select{padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:8px;font-size:.875rem;outline:none}
+.form-group input:focus,.form-group select:focus{border-color:#7c3aed;box-shadow:0 0 0 2px rgba(124,58,237,.15)}
+.form-actions{display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.25rem}
+.record-count{font-size:.8rem;color:#6b7280;margin-left:auto}
+.section-title{font-size:1rem;font-weight:700;color:#1f2937;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid #e5e7eb}
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+@media(max-width:640px){.settings-grid{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}}
+.import-zone{border:2px dashed #c4b5fd;border-radius:12px;padding:2rem;text-align:center;color:#7c3aed;cursor:pointer;transition:.2s}
+.import-zone:hover{background:#faf5ff;border-color:#7c3aed}
+.preview-table-wrap{max-height:240px;overflow-y:auto;margin:1rem 0}
+.audit-item{display:flex;gap:.75rem;padding:.75rem;border-bottom:1px solid #f3f4f6;align-items:flex-start}
+.audit-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0}
+.audit-add{background:#dcfce7;color:#15803d}
+.audit-edit{background:#dbeafe;color:#1d4ed8}
+.audit-delete{background:#fee2e2;color:#dc2626}
+.audit-info{flex:1}
+.audit-info .title{font-size:.85rem;font-weight:600}
+.audit-info .meta{font-size:.75rem;color:#6b7280;margin-top:.15rem}
+.empty-state{text-align:center;padding:3rem;color:#9ca3af}
+.empty-state .icon{font-size:3rem;margin-bottom:1rem}
+.tag-list{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem}
+.tag{background:#f3f4f6;border-radius:20px;padding:.25rem .75rem;font-size:.8rem;display:flex;align-items:center;gap:.4rem}
+.tag button{background:none;border:none;cursor:pointer;color:#9ca3af;font-size:.9rem;line-height:1;padding:0}
+.tag button:hover{color:#dc2626}
+.kpi-card.purple{border-left-color:#7c3aed}
+.kpi-card.green{border-left-color:#16a34a}
+.kpi-card.amber{border-left-color:#d97706}
+.kpi-card.blue{border-left-color:#2563eb}
+.kpi-card.red{border-left-color:#dc2626}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#1f2937;color:#fff;padding:.75rem 1.25rem;border-radius:10px;font-size:.875rem;z-index:200;transition:opacity .3s;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.renew-card{background:#fff;border-radius:12px;padding:1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.08);border-left:4px solid #d97706;margin-top:1.5rem}
+.renew-stat{display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid #f3f4f6;font-size:.875rem}
+.renew-stat:last-child{border-bottom:none}
+.renew-stat .val{font-weight:700}
+.renew-stat .val.green{color:#16a34a}
+.renew-stat .val.amber{color:#d97706}
+.renew-stat .val.red{color:#dc2626}
+.renew-stat .val.blue{color:#2563eb}
+.renew-preview{background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:.75rem;margin:.75rem 0;font-size:.8rem}
+.modal-warn{border-left:4px solid #d97706;background:#fffbeb;border-radius:8px;padding:.75rem;margin-bottom:1rem;font-size:.8rem;color:#92400e}
+.contract-banner{background:#fff;border-radius:12px;padding:1rem 1.5rem;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:1rem;display:flex;flex-wrap:wrap;align-items:center;gap:1.5rem;border-left:4px solid #16a34a}
+.contract-banner.warning{border-left-color:#dc2626}
+.contract-banner.expired{border-left-color:#7f1d1d;background:#fef2f2}
+.contract-dates{display:flex;align-items:center;gap:.5rem;font-size:.875rem;color:#374151}
+.contract-dates .arrow{color:#9ca3af}
+.contract-dates .date-val{font-weight:600}
+.contract-countdown{display:flex;flex-direction:column;align-items:center;line-height:1.2}
+.contract-countdown .days-num{font-size:2.4rem;font-weight:800;color:#16a34a;line-height:1}
+.contract-countdown .days-num.urgent{color:#dc2626;animation:pulse-red 1.5s ease-in-out infinite}
+.contract-countdown .days-num.expired{color:#7f1d1d}
+.contract-countdown .days-label{font-size:.75rem;color:#6b7280;margin-top:.1rem}
+.contract-meta{font-size:.75rem;color:#6b7280}
+.contract-status-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .75rem;border-radius:20px;font-size:.78rem;font-weight:600}
+.contract-status-badge.ok{background:#dcfce7;color:#15803d}
+.contract-status-badge.warn{background:#fee2e2;color:#dc2626}
+.contract-status-badge.exp{background:#fecaca;color:#7f1d1d}
+@keyframes pulse-red{0%,100%{opacity:1}50%{opacity:.6}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>M365 License Dashboard</h1>
+    <span>S&amp;Sons Trading Co., Ltd. | ปีงบประมาณ 2026-2027</span>
+  </div>
+</div>
+<nav class="nav">
+  <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
+  <button class="nav-btn" data-tab="employees">พนักงาน</button>
+  <button class="nav-btn" data-tab="settings">ตั้งค่า</button>
+  <button class="nav-btn" data-tab="importexport">Import/Export</button>
+  <button class="nav-btn" data-tab="auditlog">Audit Log</button>
+</nav>
+
+<div id="tab-dashboard" class="tab-content active">
+  <div id="contract-banner"></div>
+  <div class="kpi-grid" id="kpi-grid"></div>
+  <div class="charts-grid">
+    <div class="chart-card"><h3>ค่าใช้จ่ายตามแผนก (บาท/ปี) <small style="font-size:.75rem;color:#6b7280;font-weight:normal;cursor:default;">🖱️ คลิกที่แผนกเพื่อดูพนักงาน</small></h3><div class="chart-wrap"><canvas id="chart-cost-dept"></canvas></div></div>
+    <div class="chart-card"><h3>การกระจาย License</h3><div class="chart-wrap"><canvas id="chart-license-dist"></canvas></div></div>
+    <div class="chart-card"><h3>จำนวนผู้ใช้งานตามแผนก</h3><div class="chart-wrap"><canvas id="chart-users-dept"></canvas></div></div>
+    <div class="chart-card"><h3>สถานะ License</h3><div class="chart-wrap"><canvas id="chart-status-dist"></canvas></div></div>
+  </div>
+</div>
+
+<div id="tab-employees" class="tab-content">
+  <div class="toolbar">
+    <input type="text" id="search-input" placeholder="ค้นหาชื่อ/อีเมล..." style="min-width:200px">
+    <select id="filter-dept"><option value="">-- แผนกทั้งหมด --</option></select>
+    <select id="filter-status"><option value="">-- สถานะทั้งหมด --</option><option value="ใช้งานอยู่">ใช้งานอยู่</option><option value="ออกแล้วแต่ยังใช้งาน">ออกแล้วแต่ยังใช้งาน</option><option value="พร้อมใช้งาน">พร้อมใช้งาน</option></select>
+    <select id="filter-license"><option value="">-- License ทั้งหมด --</option></select>
+    <button class="btn btn-primary" id="btn-add-emp">+ เพิ่มพนักงาน</button>
+    <span class="record-count" id="record-count"></span>
+  </div>
+  <div class="card table-wrap">
+    <table id="emp-table">
+      <thead><tr><th>No</th><th>ชื่อ</th><th>อีเมล</th><th>แผนก</th><th>ตำแหน่ง</th><th>License</th><th>ราคา/ปี</th><th>สถานะ</th><th>ปี</th><th>Actions</th></tr></thead>
+      <tbody id="emp-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="tab-settings" class="tab-content">
+  <div class="settings-grid">
+    <div class="card">
+      <div class="section-title">ประเภท License</div>
+      <div class="table-wrap" style="margin-bottom:1rem">
+        <table id="license-table">
+          <thead><tr><th>ชื่อ</th><th>ราคา/ปี (บาท)</th><th>สี</th><th></th></tr></thead>
+          <tbody id="license-tbody"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-primary btn-sm" id="btn-add-license">+ เพิ่ม License</button>
+    </div>
+    <div class="card">
+      <div class="section-title">แผนก</div>
+      <div id="dept-list" style="margin-bottom:1rem"></div>
+      <div style="display:flex;gap:.5rem">
+        <input type="text" id="new-dept-input" placeholder="ชื่อแผนกใหม่" style="flex:1;padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:8px;font-size:.875rem;outline:none">
+        <button class="btn btn-primary btn-sm" id="btn-add-dept">+ เพิ่ม</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contract Dates Card -->
+  <div class="card" style="margin-top:1.5rem;border-left:4px solid #2563eb">
+    <div class="section-title" style="border-color:#bfdbfe;color:#1d4ed8">วันที่สัญญา Microsoft 365</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.75rem;align-items:end">
+      <div class="form-group">
+        <label>วันเริ่มสัญญา</label>
+        <input type="date" id="contract-start-input" style="padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:8px;font-size:.875rem;width:100%">
+      </div>
+      <div class="form-group">
+        <label>วันหมดสัญญา</label>
+        <input type="date" id="contract-end-input" style="padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:8px;font-size:.875rem;width:100%">
+      </div>
+      <button class="btn btn-primary btn-sm" id="btn-save-contract" style="height:38px">บันทึก</button>
+    </div>
+    <div id="contract-settings-preview" style="margin-top:.75rem"></div>
+  </div>
+
+  <!-- Renew Contract Card -->
+  <div class="renew-card">
+    <div class="section-title" style="border-color:#fde68a;color:#92400e">ต่อสัญญา License ปีถัดไป</div>
+    <p style="font-size:.8rem;color:#78350f;margin-bottom:1rem">
+      ใช้ฟีเจอร์นี้เมื่อต้องการต่อสัญญาในปีถัดไป — สามารถลด License ได้โดยการลบ slot "พร้อมใช้งาน" ออกจริงๆ
+      (การลดระหว่างปีสัญญาปัจจุบันทำไม่ได้)
+    </p>
+    <div id="renew-summary"></div>
+    <button class="btn btn-sm" style="background:#d97706;color:#fff;margin-top:.75rem" id="btn-open-renew">ต่อสัญญาปีถัดไป →</button>
+  </div>
+</div>
+
+<div id="tab-importexport" class="tab-content">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+    <div class="card">
+      <div class="section-title">นำเข้าข้อมูล (CSV/XLSX)</div>
+      <div class="import-zone" id="import-zone" onclick="document.getElementById('file-import').click()">
+        <div style="font-size:2rem;margin-bottom:.5rem">📂</div>
+        <div style="font-weight:600">คลิกเพื่อเลือกไฟล์</div>
+        <div style="font-size:.8rem;margin-top:.25rem;opacity:.7">รองรับ CSV และ XLSX</div>
+      </div>
+      <input type="file" id="file-import" accept=".csv,.xlsx,.xls" style="display:none">
+      <div id="import-preview"></div>
+      <button class="btn btn-primary" id="btn-do-import" style="display:none;margin-top:.75rem;width:100%">นำเข้าข้อมูล</button>
+    </div>
+    <div class="card">
+      <div class="section-title">ส่งออกข้อมูล</div>
+      <div style="display:flex;flex-direction:column;gap:.75rem">
+        <button class="btn btn-success" id="btn-export-excel">Export Excel (3 Sheets)</button>
+        <button class="btn btn-secondary" id="btn-backup-json">Backup JSON</button>
+        <hr style="border:none;border-top:1px solid #e5e7eb">
+        <div style="font-weight:600;font-size:.875rem;color:#374151">Restore จาก JSON</div>
+        <div class="import-zone" onclick="document.getElementById('file-restore').click()" style="padding:1rem">
+          <div style="font-size:.85rem">คลิกเพื่อเลือกไฟล์ JSON</div>
+        </div>
+        <input type="file" id="file-restore" accept=".json" style="display:none">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-auditlog" class="tab-content">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem">
+      <select id="audit-filter" style="padding:.4rem .75rem;border:1px solid #d1d5db;border-radius:8px;font-size:.875rem">
+        <option value="">-- ทั้งหมด --</option>
+        <option value="ADD">เพิ่ม</option>
+        <option value="EDIT">แก้ไข</option>
+        <option value="DELETE">ลบ</option>
+        <option value="IMPORT">Import</option>
+        <option value="RESTORE">Restore</option>
+      </select>
+      <span id="audit-count" style="font-size:.8rem;color:#6b7280"></span>
+      <button class="btn btn-danger btn-sm" id="btn-clear-audit" style="margin-left:auto">ล้าง Log</button>
+    </div>
+    <div id="audit-list"></div>
+  </div>
+</div>
+
+<!-- Employee Modal -->
+<div class="modal-overlay" id="modal-emp">
+  <div class="modal">
+    <h2 id="modal-emp-title">เพิ่มพนักงาน</h2>
+    <form id="form-emp" novalidate>
+      <div class="form-grid">
+        <div class="form-group"><label>ชื่อ *</label><input type="text" name="name" required></div>
+        <div class="form-group"><label>อีเมล *</label><input type="email" name="email" required></div>
+        <div class="form-group"><label>แผนก</label><select name="dept" id="emp-dept-select"></select></div>
+        <div class="form-group"><label>ตำแหน่ง</label><input type="text" name="position"></div>
+        <div class="form-group"><label>License</label><select name="license" id="emp-license-select"></select></div>
+        <div class="form-group"><label>ราคา/ปี (บาท)</label><input type="number" name="price" id="emp-price" readonly style="background:#f9fafb"></div>
+        <div class="form-group"><label>สถานะ</label>
+          <select name="status">
+            <option value="ใช้งานอยู่">ใช้งานอยู่</option>
+            <option value="ออกแล้วแต่ยังใช้งาน">ออกแล้วแต่ยังใช้งาน</option>
+            <option value="พร้อมใช้งาน">พร้อมใช้งาน</option>
+          </select>
+        </div>
+        <div class="form-group"><label>ปี (พ.ศ.)</label><input type="number" name="year" value="2569"></div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-emp')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- License Modal -->
+<div class="modal-overlay" id="modal-license">
+  <div class="modal">
+    <h2 id="modal-license-title">เพิ่ม License</h2>
+    <form id="form-license" novalidate>
+      <div class="form-grid">
+        <div class="form-group"><label>ชื่อ License *</label><input type="text" name="name" required></div>
+        <div class="form-group"><label>ราคา/ปี (บาท) *</label><input type="number" name="price_per_year" required min="0"></div>
+        <div class="form-group full"><label>สี</label><input type="color" name="color" value="#7c3aed" style="height:40px;cursor:pointer"></div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-license')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Renew Contract Modal -->
+<div class="modal-overlay" id="modal-renew">
+  <div class="modal" style="max-width:560px">
+    <h2 style="color:#92400e">ต่อสัญญา License ปีถัดไป</h2>
+    <div class="modal-warn">
+      ⚠️ การลบ License มีผลถาวร — ระบบจะลบเฉพาะ slot "พร้อมใช้งาน" เท่านั้น<br>
+      License ที่มีพนักงาน (ใช้งานอยู่ / ออกแล้วแต่ยังใช้งาน) จะไม่ถูกลบ
+    </div>
+    <div id="renew-modal-stats" style="margin-bottom:1rem"></div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label style="font-weight:700;color:#374151">จำนวน License ที่ต้องการซื้อในปีถัดไป</label>
+      <input type="number" id="renew-target" min="1" style="width:100%;padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:8px;font-size:1rem;margin-top:.3rem">
+      <div id="renew-hint" style="font-size:.78rem;color:#6b7280;margin-top:.3rem"></div>
+    </div>
+    <div id="renew-preview-box"></div>
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('modal-renew')">ยกเลิก</button>
+      <button type="button" id="btn-confirm-renew" class="btn" style="background:#d97706;color:#fff" disabled>ยืนยันต่อสัญญา</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const INITIAL_DATA = {"employees":[{"no":1,"name":"Nissara","email":"nissara@scotch.co.th","dept":"Marketing","position":"","license":"Basic","price":1030,"status":"ออกแล้วแต่ยังใช้งาน","year":2569},{"no":2,"name":"Hrfactory","email":"hr.factory@scotch.co.th","dept":"HR & IT","position":"","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":3,"name":"export","email":"export@scotch.co.th","dept":"CHM & BD","position":"","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":4,"name":"Mktgdept","email":"mktgdept@scotch.co.th","dept":"Marketing","position":"","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":5,"name":"Online","email":"online@scotch.co.th","dept":"CHM & BD","position":"","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":6,"name":"Scan","email":"scan@scotch.co.th","dept":"HR & IT","position":"","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":7,"name":"Somkiat","email":"somkiat@scotch.co.th","dept":"บริหาร (Management)","position":"General Management Director ","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":8,"name":"Somboon","email":"somboon@scotch.co.th","dept":"บริหาร (Management)","position":"ประธานกรรมการกลุ่มบริษัทสก๊อต","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":9,"name":"Sompoch","email":"sompoch@scotch.co.th","dept":"บริหาร (Management)","position":"กรรมการผู้อำนวยการฝ่ายการตลาด","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":10,"name":"Scotch","email":"scotch.connect@scotch.co.th","dept":"HR & IT","position":"","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":11,"name":"Aunyamanee","email":"aunyamanee.n@scotch.co.th","dept":"HR & IT","position":"","license":"Basic","price":1030,"status":"พร้อมใช้งาน","year":2569},{"no":12,"name":"Account","email":"account.supreme@scotch.co.th","dept":"Property Management","position":"","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":13,"name":"GBR","email":"gbr.supreme@scotch.co.th","dept":"Property Management","position":"","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":14,"name":"Marketing","email":"marketing.supreme@scotch.co.th","dept":"Property Management","position":"","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":15,"name":"Achiraya","email":"achiraya.h@scotch.co.th","dept":"Marketing","position":"Business FA Supervisor","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":16,"name":"Wichayada","email":"wichayada.s@scotch.co.th","dept":"Supply Chain Management","position":"Customer Service Staff","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":17,"name":"Recruitment","email":"recruitment@scotch.co.th","dept":"HR & IT","position":"","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":18,"name":"One","email":"rpa@scotch.co.th","dept":"HR & IT","position":"","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":19,"name":"Ruangdet","email":"ruangdet.c@scotch.co.th","dept":"HR & IT","position":"","license":"Basic","price":1030,"status":"พร้อมใช้งาน","year":2569},{"no":20,"name":"letsconnect","email":"letsconnect@scotch.co.th","dept":"HR & IT","position":"","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":21,"name":"Adison","email":"adison.r@scotch.co.th","dept":"Supply Chain Management","position":"ชุดของขวัญ (Manufacturing Daily Staff)","license":"Basic","price":1030,"status":"ใช้งานอยู่","year":2569},{"no":22,"name":"Asawin","email":"asawin.r@scotch.co.th","dept":"HR & IT","position":"IT - Infrastructure Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":23,"name":"Sarat","email":"sarat.d@scotch.co.th","dept":"Manufacturing","position":"IT - Infrastructure","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":24,"name":"Natthapong","email":"natthapong.c@scotch.co.th","dept":"HR & IT","position":"IT - Infrastructure Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":25,"name":"Wasaroot","email":"wasaroot@scotch.co.th","dept":"HR & IT","position":"IT - Infrastructure Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":26,"name":"Chutirat","email":"chutirat.c@scotch.co.th","dept":"Marketing","position":"IB Marketing Senior Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":27,"name":"Ingon","email":"ingon@scotch.co.th","dept":"HR & IT","position":"HRE & D Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":28,"name":"Warissara","email":"warissara.t@scotch.co.th","dept":"CHM & BD","position":"Business Analysis Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":29,"name":"Nunnapuzz","email":"nunnapuzz.l@scotch.co.th","dept":"CHM & BD","position":"Business Analysis Senior Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":30,"name":"Varittha","email":"varittha.v@scotch.co.th","dept":"CHM & BD","position":"Channel Management and Business Development Director","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":31,"name":"Banwatee","email":"banwatee.t@scotch.co.th","dept":"HR & IT","position":"Acting IT Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":32,"name":"Oraparn","email":"oraparn.j@scotch.co.th","dept":"Finance and Accounting","position":"Finance Manager – Property","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":33,"name":"Apassorn","email":"apassorn.p@scotch.co.th","dept":"CHM & BD","position":"Channel Marketing Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":34,"name":"Arunee","email":"arunee.k@scotch.co.th","dept":"Customer Development","position":"Head of Modern Trade ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":35,"name":"Amarin","email":"amarin.w@scotch.co.th","dept":"Customer Development","position":"Regional Sales Manager - Northeast","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":36,"name":"Achiraya","email":"achiraya.c@scotch.co.th","dept":"Finance and Accounting","position":"Business FA Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":37,"name":"Athitaya","email":"athitaya.s@scotch.co.th","dept":"CHM & BD","position":"Customer Development Manager - Own Asset and New Channel","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":38,"name":"Aungsana","email":"aungsana.c@scotch.co.th","dept":"CHM & BD","position":"Category Marketing Supervisor ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":39,"name":"Chanakhan","email":"chanakhan.p@scotch.co.th","dept":"Finance and Accounting","position":"Senior Treasury Collection Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":40,"name":"Charttrika","email":"charttrika.s@scotch.co.th","dept":"Customer Development","position":"Chinese Development Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":41,"name":"Benjamart","email":"benjamart.c@scotch.co.th","dept":"Customer Development","position":"Customer Development Senior Manager - Lotus & Big C","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":42,"name":"Charinrat","email":"charinrat.k@scotch.co.th","dept":"Finance and Accounting","position":"Treasury Collection Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":43,"name":"Atinuch","email":"atinuch.p@scotch.co.th","dept":"CHM & BD","position":"Channel Marketing Senior Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":44,"name":"Chollada","email":"chollada.c@scotch.co.th","dept":"Supply Chain Management","position":"Supply Chain Director","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":45,"name":"Kannika","email":"kannika.s@scotch.co.th","dept":"HR & IT","position":"HRD Supervisor ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":46,"name":"Jaruwan","email":"jaruwan.l@scotch.co.th","dept":"Customer Development","position":"Field Force Operation Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":47,"name":"Engineering","email":"engineering@scotch.co.th","dept":"Manufacturing","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":48,"name":"Kanlaya","email":"kanlaya@scotch.co.th","dept":"Finance and Accounting","position":"Accounting Factory Sup","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":49,"name":"Chonticha","email":"chonticha.w@scotch.co.th","dept":"HR & IT","position":"HRG Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":50,"name":"Finance","email":"finance.factory@scotch.co.th","dept":"Finance and Accounting","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":51,"name":"Cholthicha","email":"Cholthicha@scotch.co.th","dept":"Manufacturing","position":"Managing Director","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":52,"name":"Juntip","email":"juntip@scotch.co.th","dept":"Customer Development","position":"Field Force Planning Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":53,"name":"Laorngdaw","email":"laorngdaw.m@scotch.co.th","dept":"Customer Development","position":"Distributor Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":54,"name":"Logistic","email":"logistic@scotch.co.th","dept":"Manufacturing","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":55,"name":"Laddawan","email":"laddawan.j@scotch.co.th","dept":"Customer Development","position":"Acting Sales Support Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":56,"name":"Mevadee","email":"mevadee.m@scotch.co.th","dept":"Customer Development","position":"Field Force Operations Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":57,"name":"Manopakorn","email":"manopakorn.b@scotch.co.th","dept":"CHM & BD","position":"Graphic Design Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":58,"name":"Mayvika","email":"mayvika.n@scotch.co.th","dept":"CHM & BD","position":"Sales Assist Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":59,"name":"Khanitta","email":"khanitta.s@scotch.co.th","dept":"CHM & BD","position":"Customer Development Officer: Own Asset","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":60,"name":"Maleesa","email":"maleesa.r@scotch.co.th","dept":"HR & IT","position":"","license":"Standard","price":3427,"status":"พร้อมใช้งาน","year":2569},{"no":61,"name":"Marisa","email":"marisa.t@scotch.co.th","dept":"CHM & BD","position":"International Business Development Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":62,"name":"Mongkol","email":"mongkol.p@scotch.co.th","dept":"CHM & BD","position":"Customer Development Manager – Marketplace","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":63,"name":"Natdanai","email":"natdanai.r@scotch.co.th","dept":"Customer Development","position":"Customer Development Supervisor - The Mall & Foodland","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":64,"name":"Nipitphon","email":"nipitphon.k@scotch.co.th","dept":"Customer Development","position":"Acting Regional Sales Manager - North","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":65,"name":"Nititorn","email":"nititorn.n@scotch.co.th","dept":"CHM & BD","position":"Head of E-Commerce and Business Development","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":66,"name":"Onanog","email":"onanog.s@scotch.co.th","dept":"Customer Development","position":"Event and Chinese Activator ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":67,"name":"Nattharica","email":"nattharica.y@scotch.co.th","dept":"CHM & BD","position":"China Channels Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":68,"name":"Onanong","email":"onanong.c@scotch.co.th","dept":"Customer Development","position":"Admin","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":69,"name":"Natticha","email":"natticha.j@scotch.co.th","dept":"Finance and Accounting","position":"Business FA Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":70,"name":"Online.logistic","email":"online.logistic@scotch.co.th","dept":"Manufacturing","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":71,"name":"Natthawut","email":"natthawut.m@scotch.co.th","dept":"CHM & BD","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":72,"name":"Onuma","email":"onuma.r@scotch.co.th","dept":"Customer Development","position":"Field Force Planning Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":73,"name":"Pailin","email":"pailin@scotch.co.th","dept":"บริหาร (Management)","position":"Executive Committee","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":74,"name":"Panutda","email":"panutda.s@scotch.co.th","dept":"Supply Chain Management","position":"Customer Service Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":75,"name":"Patthanun","email":"patthanun.k@scotch.co.th","dept":"Customer Development","position":"Acting Field Force Operations Support Executive ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":76,"name":"Paksuda","email":"paksuda.p@scotch.co.th","dept":"Customer Development","position":"Field Force Operation Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":77,"name":"Pattama","email":"pattama.s@scotch.co.th","dept":"Customer Development","position":"Field Force Operation Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":78,"name":"QC_Lab","email":"qc_lab@scotch.co.th","dept":"Manufacturing","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":79,"name":"Pavee","email":"pavee.l@scotch.co.th","dept":"Customer Development","position":"Event and Chinese Activator ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":80,"name":"Pensuree","email":"pensuree.k@scotch.co.th","dept":"Marketing","position":"Graphic Design Specialist ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":81,"name":"Piyachat","email":"piyachat.k@scotch.co.th","dept":"CHM & BD","position":"Sales Assist Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":82,"name":"Pongchai","email":"pongchai@scotch.co.th","dept":"Customer Development","position":"Customer Development Director ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":83,"name":"Phitphibun","email":"phitphibun.c@scotch.co.th","dept":"Customer Development","position":"Distributor Sales Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":84,"name":"Piyamol","email":"piyamol.p@scotch.co.th","dept":"CHM & BD","position":"Channel Activation Support Manager ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":85,"name":"QA","email":"qa.factory@scotch.co.th","dept":"Manufacturing","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":86,"name":"Sirinapa","email":"sirinapa.n@scotch.co.th","dept":"CHM & BD","position":"International Business Development Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":87,"name":"Rd","email":"rd.team@scotch.co.th","dept":"Manufacturing","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":88,"name":"Sireethorn","email":"sireethorn.t@scotch.co.th","dept":"Customer Development","position":"Customer Development Manager - Big C","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":89,"name":"Ploytip","email":"ploytip.s@scotch.co.th","dept":"HR & IT","position":"HRE Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":90,"name":"Phatareya","email":"phatareya@scotch.co.th","dept":"HR & IT","position":"HRG Senior Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":91,"name":"Purchasing_factory","email":"purchasing_factory@scotch.co.th","dept":"Supply Chain Management","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":92,"name":"Rattana","email":"rattana.b@scotch.co.th","dept":"CHM & BD","position":"Category Marketing Senior Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":93,"name":"Phonarthit","email":"phonarthit.t@scotch.co.th","dept":"Customer Development","position":"Acting CD Supervisor - TOPS Daily & GO Wholesale ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":94,"name":"Sittakarn","email":"sittakarn.k@scotch.co.th","dept":"Customer Development","position":"Customer Development Support Manager - Makro","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":95,"name":"Production","email":"production@scotch.co.th","dept":"Manufacturing","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":96,"name":"Pimonporn","email":"pimonporn@scotch.co.th","dept":"Finance and Accounting","position":"Accounting - AP Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":97,"name":"Vinai","email":"vinai.t@scotch.co.th","dept":"Customer Development","position":"Regional Sales Manager - BKK & Central","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":98,"name":"Store","email":"store@scotch.co.th","dept":"Manufacturing","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":99,"name":"Sudarat","email":"sudarat.t@scotch.co.th","dept":"Finance and Accounting","position":"Business FA Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":100,"name":"Thanat","email":"thanat.w@scotch.co.th","dept":"Customer Development","position":"Customer Development Support Manager – CJ & CVS","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":101,"name":"Trirat","email":"trirat.s@scotch.co.th","dept":"CHM & BD","position":"Category Marketing Supervisor ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":102,"name":"Songpol","email":"songpol.a@scotch.co.th","dept":"Customer Development","position":"Distributor Sales Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":103,"name":"Weena","email":"weena.n@scotch.co.th","dept":"Supply Chain Management","position":"Demand and Supply Planning Senior Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":104,"name":"Suthasinee","email":"suthasinee.k@scotch.co.th","dept":"Customer Development","position":"Admin","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":105,"name":"Thanit","email":"thanit.t@scotch.co.th","dept":"Customer Development","position":"Customer Development Senior Manager - 7-11 & The Mall","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":106,"name":"Sukantana","email":"sukantana.w@scotch.co.th","dept":"Customer Development","position":"Field Force Operation Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":107,"name":"Walee","email":"walee.t@scotch.co.th","dept":"CHM & BD","position":"Channel Activation Superviso","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":108,"name":"Sumrit","email":"sumrit.p@scotch.co.th","dept":"Marketing","position":"Media Planner Manager ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":109,"name":"Titaree","email":"titaree.t@scotch.co.th","dept":"Customer Development","position":"Admin","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":110,"name":"Suweena","email":"suweena.k@scotch.co.th","dept":"CHM & BD","position":"Channel Activation Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":111,"name":"Suchada","email":"suchada.b@scotch.co.th","dept":"Supply Chain Management","position":"Customer Service Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":112,"name":"Wannalanna","email":"wannalanna.k@scotch.co.th","dept":"Marketing","position":"Marketing Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":113,"name":"Wilawan","email":"wilawan.l@scotch.co.th","dept":"HR & IT","position":"","license":"Standard","price":3427,"status":"พร้อมใช้งาน","year":2569},{"no":114,"name":"Denkhun","email":"denkhun.w@scotch.co.th","dept":"Customer Development","position":"Distributor Sales Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":115,"name":"Daungjai","email":"daungjai.y@scotch.co.th","dept":"Customer Development","position":"Field Force Planning Supervisor ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":116,"name":"Yolravee","email":"yolravee.m@scotch.co.th","dept":"Finance and Accounting","position":"Senior Treasury Payment Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":117,"name":"Pajaree","email":"pajaree.b@scotch.co.th","dept":"Customer Development","position":"PC Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":118,"name":"Kwanchanok","email":"kwanchanok.a@scotch.co.th","dept":"Customer Development","position":"Field Force Operation Supervisor ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":119,"name":"Montawan","email":"montawan.d@scotch.co.th","dept":"Customer Development","position":"Sales Admin Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":120,"name":"Manthana","email":"manthana_sri@scotch.co.th","dept":"Finance and Accounting","position":"Treasury Payment Supervisor ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":121,"name":"Montha","email":"montha.j@scotch.co.th","dept":"Customer Development","position":"PC Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":122,"name":"Paranee","email":"paranee.p@scotch.co.th","dept":"Supply Chain Management","position":"Customer Service Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":123,"name":"Thanee","email":"thanee.n@scotch.co.th","dept":"Customer Development","position":"Field Force Operation Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":124,"name":"Jittimon","email":"jittimon.t@scotch.co.th","dept":"Customer Development","position":"Field Force Operation Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":125,"name":"Suticha","email":"suticha.d@scotch.co.th","dept":"Finance and Accounting","position":"Senior Treasury Payment Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":126,"name":"Peangjai","email":"peangjai.t@scotch.co.th","dept":"Customer Development","position":"Merchandiser Executive ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":127,"name":"Saichol","email":"saichol.c@scotch.co.th","dept":"Customer Development","position":"Field Force Planning Supervisor ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":128,"name":"Suphap","email":"suphap.t@scotch.co.th","dept":"Customer Development","position":"Field Force Planning Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":129,"name":"Jirawat","email":"jirawat.w@scotch.co.th","dept":"Customer Development","position":"Field Force Planning Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":130,"name":"Kanwara","email":"kanwara.j@scotch.co.th","dept":"Customer Development","position":"Distributor Executive - BKK","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":131,"name":"Pison","email":"pison.k@scotch.co.th","dept":"Customer Development","position":"Field Force Planning Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":132,"name":"Kitti","email":"kitti.c@scotch.co.th","dept":"Customer Development","position":"PC Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":133,"name":"Watcharobon","email":"watcharobon_yod@scotch.co.th","dept":"Customer Development","position":"Field Force Operations Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":134,"name":"Sarinya","email":"sarinya.s@scotch.co.th","dept":"Finance and Accounting","position":"Accounting - AP Senior Officer ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":135,"name":"Prapassorn","email":"prapassorn.k@scotch.co.th","dept":"HR & IT","position":"Acting HRG Senior Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":136,"name":"Waraporn","email":"waraporn.b@scotch.co.th","dept":"HR & IT","position":"HRG Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":137,"name":"Thanormjit","email":"thanormjit.t@scotch.co.th","dept":"Customer Development","position":"Field Force Operation Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":138,"name":"Kannanat","email":"kannanat.s@scotch.co.th","dept":"Supply Chain Management","position":"Customer Service Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":139,"name":"Juraimas","email":"juraimas.p@scotch.co.th","dept":"Finance and Accounting","position":"Head of Treasury","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":140,"name":"Nuttanicha","email":"nuttanicha.m@scotch.co.th","dept":"Customer Development","position":"Admin","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":141,"name":"Yuwadee","email":"yuwadee.h@scotch.co.th","dept":"Marketing","position":"Graphic Design Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":142,"name":"Yupavan","email":"yupawan.h@scotch.co.th","dept":"Customer Development","position":"Field Force Planning Supervisor ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":143,"name":"Worawimol","email":"worawimol@scotch.co.th","dept":"Marketing","position":"Senior Marketing Manager ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":144,"name":"Purchasing","email":"purchasing@scotch.co.th","dept":"Supply Chain Management","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":145,"name":"Pimwadee","email":"pimwadee.a@scotch.co.th","dept":"Manufacturing","position":"R&D Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":146,"name":"Thaniya","email":"thaniya.s@scotch.co.th","dept":"Manufacturing","position":"R&D Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":147,"name":"Napatsawan","email":"napatsawan.y@scotch.co.th","dept":"Manufacturing","position":"QC Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":148,"name":"Thitima","email":"thitima.c@scotch.co.th","dept":"Manufacturing","position":"R&D Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":149,"name":"Laddawan","email":"laddawan.k@scotch.co.th","dept":"Manufacturing","position":"Analytical R&D Senior Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":150,"name":"Tanapatt","email":"tanapatt.p@scotch.co.th","dept":"Property Management","position":"Restaurant Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":151,"name":"Jubjaeng","email":"jubjaeng.u@scotch.co.th","dept":"Supply Chain Management","position":"Customer Service Staff","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":152,"name":"Somprasong","email":"somprasong.p@scotch.co.th","dept":"Manufacturing","position":"Production Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":153,"name":"Phornphan","email":"phornphan.k@scotch.co.th","dept":"Manufacturing","position":"Plant Operation Senior Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":154,"name":"Sattawat","email":"sattawat.s@scotch.co.th","dept":"Manufacturing","position":"Production Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":155,"name":"Ratda","email":"ratda.j@scotch.co.th","dept":"Manufacturing","position":"Production Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":156,"name":"Janpen","email":"janpen.n@scotch.co.th","dept":"Manufacturing","position":"Production Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":157,"name":"Jitsumon","email":"jitsumon.j@scotch.co.th","dept":"Supply Chain Management","position":"Order Processing Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":158,"name":"Nuttanich","email":"nuttanich.m@scotch.co.th","dept":"Manufacturing","position":"Production Planning Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":159,"name":"Chayanee","email":"chayanee.s@scotch.co.th","dept":"Supply Chain Management","position":"Logistics Control Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":160,"name":"Sattha","email":"sattha.u@scotch.co.th","dept":"Supply Chain Management","position":"Logistics Support Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":161,"name":"Niphaphan","email":"niphaphan.p@scotch.co.th","dept":"Manufacturing","position":"Inventory Control Officer - Packaging Material ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":162,"name":"Nanticha","email":"nanticha.p@scotch.co.th","dept":"Supply Chain Management","position":"Order Processing Officer ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":163,"name":"Woratip","email":"woratip.k@scotch.co.th","dept":"Supply Chain Management","position":"Acting Procurement Supervisor - Packaging ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":164,"name":"Sudarat","email":"sudarat.w@scotch.co.th","dept":"Manufacturing","position":"QA Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":165,"name":"Pimpa","email":"pimpa.t@scotch.co.th","dept":"Supply Chain Management","position":"Procurement Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":166,"name":"Sunanta","email":"sunanta.b@scotch.co.th","dept":"Manufacturing","position":"Inventory Control Officer -Goods","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":167,"name":"Pawarisa","email":"pawarisa.c@scotch.co.th","dept":"Supply Chain Management","position":"Customer Service Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":168,"name":"Chanida","email":"chanida.c@scotch.co.th","dept":"Property Management","position":"Tenant Management Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":169,"name":"Sukunya","email":"sukunya.m@scotch.co.th","dept":"Supply Chain Management","position":"Distribution & Logistics Control Senior Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":170,"name":"Janjira","email":"janjira.a@scotch.co.th","dept":"Property Management","position":"Tenant Management Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":171,"name":"Pornwich","email":"pornwich.s@scotch.co.th","dept":"Manufacturing","position":"Engineer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":172,"name":"Jindarat","email":"jindarat.t@scotch.co.th","dept":"Manufacturing","position":"Engineer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":173,"name":"Phatcharaporn","email":"phatcharaporn.p@scotch.co.th","dept":"Property Management","position":"Tenant Management Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":174,"name":"Kawin","email":"kawin.s@scotch.co.th","dept":"Property Management","position":"Engineer Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":175,"name":"Noppawan","email":"noppawan.m@scotch.co.th","dept":"Property Management","position":"Marketing Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":176,"name":"Thitikan","email":"thitikan.b@scotch.co.th","dept":"Supply Chain Management","position":"Procurement Senior Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":177,"name":"Kanlayanee","email":"kanlayanee.j@scotch.co.th","dept":"Finance and Accounting","position":"Senior Treasury Factory Officer ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":178,"name":"Lamoon","email":"lamoon.k@scotch.co.th","dept":"Manufacturing","position":"QC Senior Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":179,"name":"Sunisa","email":"sunisa.d@scotch.co.th","dept":"Property Management","position":"Accounting Officer ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":180,"name":"Isaraphap","email":"isaraphap.u@scotch.co.th","dept":"Property Management","position":"General Manager - Supreme","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":181,"name":"Phadungsri","email":"Phadungsri.S@scotch.co.th","dept":"CHM & BD","position":"Customer Care: Lazada ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":182,"name":"Sasiluck","email":"sasiluck.p@scotch.co.th","dept":"Property Management","position":"Marketing Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":183,"name":"Nisachon","email":"nisachon.j@scotch.co.th","dept":"Property Management","position":"Accounting Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":184,"name":"Kannika","email":"kannika.p@scotch.co.th","dept":"Manufacturing","position":"QA Senior Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":185,"name":"Kortipar","email":"kortipar.t@scotch.co.th","dept":"Property Management","position":"Admin","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":186,"name":"Pannipa","email":"pannipa.r@scotch.co.th","dept":"Property Management","position":"Marketing Senior Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":187,"name":"Nanthawat","email":"nanthawat.p@scotch.co.th","dept":"Property Management","position":"IT - Software Developer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":188,"name":"Amphai","email":"amphai.p@scotch.co.th","dept":"CHM & BD","position":"Customer Care: Shopee","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":189,"name":"Phongphun","email":"phongphun.c@scotch.co.th","dept":"Property Management","position":"Building Manager ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":190,"name":"Karnchanok","email":"karnchanok.y@scotch.co.th","dept":"HR & IT","position":"HR Admin & PR ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":191,"name":"Waraporn","email":"waraporn.i@scotch.co.th","dept":"Property Management","position":"Graphic Design Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":192,"name":"Nunthawan","email":"nunthawan.s@scotch.co.th","dept":"Property Management","position":"Admin","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":193,"name":"Rujira","email":"rujira.s@scotch.co.th","dept":"Customer Development","position":"Customer Development Support Manager - Tops","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":194,"name":"Poohsita","email":"poohsita.s@scotch.co.th","dept":"Manufacturing","position":"Safety Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":195,"name":"Apichai","email":"apichai.k@scotch.co.th","dept":"HR & IT","position":"IT - Software Developer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":196,"name":"Patteera","email":"patteera.r@scotch.co.th","dept":"Customer Development","position":"Customer Development Support Manager - 7-11","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":197,"name":"Patcharin","email":"patcharin.m@scotch.co.th","dept":"HR & IT","position":"HR & IT Director","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":198,"name":"Thanita","email":"thanita.l@scotch.co.th","dept":"Property Management","position":"Admin","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":199,"name":"Purichaya","email":"purichaya.n@scotch.co.th","dept":"Finance and Accounting","position":"Accounting – AP Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":200,"name":"Nattapat","email":"nattapat.t@scotch.co.th","dept":"CHM & BD","position":"Business Analyst","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":201,"name":"Kanokwan","email":"kanokwan.y@scotch.co.th","dept":"HR & IT","position":"HR Admin & PR","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":202,"name":"Paradorn","email":"paradorn.p@scotch.co.th","dept":"Customer Development","position":"Distributor Sales Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":203,"name":"Kalayanee","email":"kalayanee.s@scotch.co.th","dept":"HR & IT","position":"HRM Supervisor - Factory","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":204,"name":"Aunchisa","email":"aunchisa.a@scotch.co.th","dept":"HR & IT","position":"HR Admin - HQ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":205,"name":"Apinya","email":"apinya.c@scotch.co.th","dept":"HR & IT","position":"HR Admin - Factory","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":206,"name":"Yanisa","email":"yanisa.c@scotch.co.th","dept":"Finance and Accounting","position":"","license":"Standard","price":3427,"status":"ออกแล้วแต่ยังใช้งาน","year":2569},{"no":207,"name":"Prapruek","email":"prapruek.c@scotch.co.th","dept":"HR & IT","position":"HRM Senior Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":208,"name":"Cheereen","email":"cheereen.p@scotch.co.th","dept":"Customer Development","position":"Distributor Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":209,"name":"Taepee","email":"taepee.m@scotch.co.th","dept":"CHM & BD","position":"Customer Care: Own Asset","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":210,"name":"Sataphol","email":"sataphol.w@scotch.co.th","dept":"Customer Development","position":"Regional Sales Manager - South","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":211,"name":"Kantarat","email":"kantarat.c@scotch.co.th","dept":"Marketing","position":"Product Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":212,"name":"Sujitra","email":"sujitra.j@scotch.co.th","dept":"CHM & BD","position":"Channel Activation Supervisor ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":213,"name":"Thannicha","email":"thannicha.c@scotch.co.th","dept":"CHM & BD","position":"Category Marketing Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":214,"name":"Arratee","email":"arratee.d@scotch.co.th","dept":"Manufacturing","position":"Document Control Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":215,"name":"Anurat","email":"anurat.c@scotch.co.th","dept":"Finance and Accounting","position":"Finance Business Partner ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":216,"name":"Kanokporn","email":"kanokporn.a@scotch.co.th","dept":"CHM & BD","position":"Customer Development Officer E-Commerce ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":217,"name":"Jittima","email":"jittima.p@scotch.co.th","dept":"CHM & BD","position":"Category Marketing Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":218,"name":"Waratchaya","email":"waratchaya.a@scotch.co.th","dept":"Customer Development","position":"Customer Development Support Manager - Lotus GoFresh","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":219,"name":"Natee","email":"natee.a@scotch.co.th","dept":"Marketing","position":"Graphic Design Senior Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":220,"name":"Pongsathorn","email":"pongsathorn.s@scotch.co.th","dept":"Customer Development","position":"Customer Development Manager - Lotus","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":221,"name":"Nutchanan","email":"nutchanan.s@scotch.co.th","dept":"Supply Chain Management","position":"Procurement Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":222,"name":"Nuttapohn","email":"nuttapohn.l@scotch.co.th","dept":"CHM & BD","position":"Customer Development Officer E-Commerce ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":223,"name":"Thanchanok","email":"thanchanok.kit@scotch.co.th","dept":"Marketing","position":"Marketing executive ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":224,"name":"Ratiya","email":"ratiya.k@scotch.co.th","dept":"Marketing","position":"Regulatory Affairs Expertise Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":225,"name":"Nisanart","email":"nisanart.p@scotch.co.th","dept":"Marketing","position":"International Business Marketing Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":226,"name":"Anna","email":"anna.k@scotch.co.th","dept":"CHM & BD","position":"International Business Development Manager ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":227,"name":"Papatchaya","email":"papatchaya.c@scotch.co.th","dept":"Customer Development","position":"Distributor Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":228,"name":"Romnarin","email":"romnarin.s@scotch.co.th","dept":"Finance and Accounting","position":"Costing Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":229,"name":"Komson","email":"komson.p@scotch.co.th","dept":"Customer Development","position":"Distributor Sales Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":230,"name":"Kochaporn","email":"kochaporn.k@scotch.co.th","dept":"Marketing","position":"Marketing Admin","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":231,"name":"Poonnitta","email":"poonnitta.p@scotch.co.th","dept":"Marketing","position":"Marketing Director","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":232,"name":"Power","email":"bi@scotch.co.th","dept":"CHM & BD","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":233,"name":"Ratchanon","email":"ratchanon.s@scotch.co.th","dept":"CHM & BD","position":"Customer Development Supervisor","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":234,"name":"Pitipoom","email":"pitipoom.h@scotch.co.th","dept":"Supply Chain Management","position":"Customer Service Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":235,"name":"Aunchisa","email":"aunchisa.c@scotch.co.th","dept":"Marketing","position":"Product Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":236,"name":"Pokchrat","email":"pokchrat.p@scotch.co.th","dept":"Customer Development","position":"Distributor Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":237,"name":"Virundon","email":"virundon.v@scotch.co.th","dept":"Customer Development","position":"Distributor Sales Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":238,"name":"Shao-hui","email":"shaohui.c@scotch.co.th","dept":"Marketing","position":"Consumer Marketing Insight Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":239,"name":"Aroonroj","email":"aroonroj.r@scotch.co.th","dept":"Finance and Accounting","position":"Senior Treasury Collection Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":240,"name":"Satit","email":"satit.p@scotch.co.th","dept":"Customer Development","position":"Head of Traditional Trade","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":241,"name":"Kanittha","email":"kanittha.c@scotch.co.th","dept":"Marketing","position":"Marketing Coordinator","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":242,"name":"Ramrada","email":"ramrada.t@scotch.co.th","dept":"Marketing","position":"Product Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":243,"name":"Napat","email":"napat.k@scotch.co.th","dept":"CHM & BD","position":"Social Content Creator","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":244,"name":"Nantika","email":"nantika.m@scotch.co.th","dept":"Property Management","position":"Senior Accounting Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":245,"name":"Jindarat","email":"jindarat.p@scotch.co.th","dept":"Property Management","position":"Senior Accounting Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":246,"name":"Kannanat","email":"kannanat.d@scotch.co.th","dept":"Finance and Accounting","position":"Accounting - Trading Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":247,"name":"Kritsanuphong","email":"kritsanuphong.w@scotch.co.th","dept":"Marketing","position":"Graphic Design","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":248,"name":"Anukool","email":"anukool.b@scotch.co.th","dept":"Finance and Accounting","position":"Accounting and Tax Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":249,"name":"Kassuda","email":"kassuda.e@scotch.co.th","dept":"Finance and Accounting","position":"Business FA Specialist ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":250,"name":"Natnicha","email":"natnicha.r@scotch.co.th","dept":"Supply Chain Management","position":"Procurement Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":251,"name":"Karntida","email":"karntida.v@scotch.co.th","dept":"Marketing","position":"Corporate Innovation Strategy Manager ","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":252,"name":"Thanawat","email":"thanawat.t@scotch.co.th","dept":"Marketing","position":"International Business Marketing & NPD Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":253,"name":"Athibadee","email":"athibadee.w@scotch.co.th","dept":"Manufacturing","position":"Inventory Control (Materials) Staff","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":254,"name":"Arusa","email":"arusa.n@scotch.co.th","dept":"Marketing","position":"Product Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":255,"name":"Kritiya","email":"kritiya.j@scotch.co.th","dept":"HR & IT","position":"Talent Acquisition & Branding Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":256,"name":"Komgrit","email":"komgrit.p@scotch.co.th","dept":"Customer Development","position":"Distributor Sales Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":257,"name":"Pimchanok","email":"pimchanok.s@scotch.co.th","dept":"Customer Development","position":"Sales Admin","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":258,"name":"Jintaporn","email":"jintaporn.t@scotch.co.th","dept":"Customer Development","position":"Distributor Executive","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":259,"name":"Onsiri","email":"onsiri.e@scotch.co.th","dept":"Finance and Accounting","position":"Group Finance and Accounting Director","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":260,"name":"Ranoo","email":"ranoo.p@scotch.co.th","dept":"Finance and Accounting","position":"Accounting – Factory Specialist","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":261,"name":"Yosvadee","email":"yosvadee.y@scotch.co.th","dept":"Customer Development","position":"Customer Development Supervisor - Big C Mini","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":262,"name":"Sarisa","email":"sarisa.s@scotch.co.th","dept":"Customer Development","position":"Customer Development Manager - Makro Tops & Other CVS","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":263,"name":"Raya","email":"raya.k@scotch.co.th","dept":"HR & IT","position":"Acting HRM Support Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":264,"name":"Nutcha","email":"nutcha.s@scotch.co.th","dept":"Marketing","position":"Product Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":265,"name":"Pranpariya","email":"pranpariya.m@scotch.co.th","dept":"Property Management","position":"Marketing Officer","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":266,"name":"Nuttawipa","email":"nuttawipa.o@scotch.co.th","dept":"Finance and Accounting","position":"Commercial Finance Manager – Category","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":267,"name":"Pasinee","email":"pasinee.s@scotch.co.th","dept":"Finance and Accounting","position":"Commercial Finance Analyst","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":268,"name":"Supranee","email":"supranee.p@scotch.co.th","dept":"Finance and Accounting","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":269,"name":"Busayamas","email":"busayamas.i@scotch.co.th","dept":"Supply Chain Management","position":"","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":270,"name":"Anon","email":"anon.y@scotch.co.th","dept":"Customer Development","position":"Field Force Operations Senior Manager","license":"Standard","price":3427,"status":"ใช้งานอยู่","year":2569},{"no":271,"name":"xxx","email":"xxx@scotch.co.th","dept":"Finance and Accounting","position":"Accounting Specialist - GL","license":"Standard","price":3427,"status":"พร้อมใช้งาน","year":2569},{"no":272,"name":"xxxx","email":"xxxx@scotch.co.th","dept":"CHM & BD","position":"Category Marketing Manager","license":"Standard","price":3427,"status":"พร้อมใช้งาน","year":2569},{"no":273,"name":"xxxxx","email":"xxxxx@scotch.co.th","dept":"Finance and Accounting","position":"Finance Business Partner - Category","license":"Standard","price":3427,"status":"พร้อมใช้งาน","year":2569},{"no":274,"name":"xxxxxx","email":"xxxxxx@scotch.co.th","dept":"Marketing","position":"Packaging development & Master data specialist","license":"Standard","price":3427,"status":"พร้อมใช้งาน","year":2569}]};
+
+// ---- Storage ----
+const LS = {
+  get: (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e){ return def; } },
+  set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
+};
+
+// ---- Seed ----
+function seedData() {
+  if (localStorage.getItem('m365_seeded')) return;
+  const now = new Date().toISOString();
+  const emps = INITIAL_DATA.employees.map(e => ({
+    id: 'emp_' + e.no,
+    no: e.no, name: e.name, email: e.email, dept: e.dept,
+    position: e.position || '', license: e.license, price: e.price,
+    status: e.status, year: e.year,
+    created_at: now, updated_at: now
+  }));
+  LS.set('m365_employees', emps);
+  LS.set('m365_licenses', [
+    {id:'lic_1', name:'Basic', price_per_year:1030, color:'#2563eb'},
+    {id:'lic_2', name:'Standard', price_per_year:3427, color:'#7c3aed'}
+  ]);
+  const depts = [...new Set(INITIAL_DATA.employees.map(e => e.dept))].sort();
+  LS.set('m365_departments', depts);
+  LS.set('m365_audit_log', []);
+  LS.set('m365_contract', { start: '2025-09-24', end: '2026-09-23' });
+  localStorage.setItem('m365_seeded', '1');
+}
+
+// ---- Helpers ----
+let charts = {};
+
+function uid() { return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+
+function fmt(n) { return Number(n).toLocaleString('th-TH'); }
+
+function statusBadge(s) {
+  if (s === 'ใช้งานอยู่') return '<span class="badge badge-active">ใช้งานอยู่</span>';
+  if (s === 'ออกแล้วแต่ยังใช้งาน') return '<span class="badge badge-inactive">ออกแล้วแต่ยังใช้งาน</span>';
+  return '<span class="badge badge-vacant">พร้อมใช้งาน</span>';
+}
+
+function licenseBadge(l) {
+  if (l === 'Basic') return '<span class="badge badge-basic">Basic</span>';
+  if (l === 'Standard') return '<span class="badge badge-standard">Standard</span>';
+  return `<span class="badge" style="background:#f3f4f6;color:#374151">${escHtml(l)}</span>`;
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, dur=2500) {
+  let t = document.getElementById('_toast');
+  if (!t) { t = document.createElement('div'); t.id='_toast'; t.className='toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.style.opacity='1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity='0'; }, dur);
+}
+
+function addAuditLog(action, entity_type, entity_id, entity_name, changes) {
+  const log = LS.get('m365_audit_log', []);
+  log.unshift({ id: uid(), action, entity_type, entity_id, entity_name, changes: changes||'', timestamp: new Date().toISOString() });
+  if (log.length > 500) log.length = 500;
+  LS.set('m365_audit_log', log);
+}
+
+// ---- Tab Switching ----
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('tab-' + tab).classList.add('active');
+    if (tab === 'dashboard') renderDashboard();
+    if (tab === 'employees') renderEmployees();
+    if (tab === 'settings') renderSettings();
+    if (tab === 'auditlog') renderAuditLog();
+  });
+});
+
+function navigateToDept(deptName) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector('.nav-btn[data-tab="employees"]').classList.add('active');
+  document.getElementById('tab-employees').classList.add('active');
+  populateFilterDropdowns();
+  document.getElementById('filter-dept').value = deptName;
+  filterEmployees();
+}
+
+// ---- Contract Banner ----
+function calcDaysRemaining(endDateStr) {
+  const end = new Date(endDateStr);
+  end.setHours(23, 59, 59, 999);
+  const now = new Date();
+  return Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+}
+
+function fmtThaiDate(isoStr) {
+  if (!isoStr) return '-';
+  const d = new Date(isoStr);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear() + 543;
+  return `${day}/${month}/${year}`;
+}
+
+function renderContractBanner() {
+  const contract = LS.get('m365_contract', { start: '2025-09-24', end: '2026-09-23' });
+  const days = calcDaysRemaining(contract.end);
+  const isExpired = days < 0;
+  const isUrgent = !isExpired && days <= 60;
+
+  let bannerClass = 'contract-banner';
+  if (isExpired) bannerClass += ' expired';
+  else if (isUrgent) bannerClass += ' warning';
+
+  let daysNumClass = 'days-num';
+  if (isExpired) daysNumClass += ' expired';
+  else if (isUrgent) daysNumClass += ' urgent';
+
+  let badge, countdownText;
+  if (isExpired) {
+    badge = `<span class="contract-status-badge exp">🔴 หมดสัญญาแล้ว</span>`;
+    countdownText = `<div class="${daysNumClass}">${Math.abs(days)}</div><div class="days-label">วันที่ผ่านไปหลังหมด</div>`;
+  } else if (isUrgent) {
+    badge = `<span class="contract-status-badge warn">⚠️ ใกล้หมดสัญญา</span>`;
+    countdownText = `<div class="${daysNumClass}">${days}</div><div class="days-label">วันที่เหลือ</div>`;
+  } else {
+    badge = `<span class="contract-status-badge ok">✅ ปกติ</span>`;
+    countdownText = `<div class="${daysNumClass}">${days}</div><div class="days-label">วันที่เหลือ</div>`;
+  }
+
+  const urgentNote = isUrgent
+    ? `<div style="font-size:.78rem;color:#dc2626;font-weight:600;margin-top:.25rem">⚠️ ควรเริ่มขอราคาและต่อสัญญาปีถัดไป</div>`
+    : isExpired
+    ? `<div style="font-size:.78rem;color:#7f1d1d;font-weight:600;margin-top:.25rem">❗ สัญญาหมดแล้ว กรุณาต่อสัญญาโดยด่วน</div>`
+    : '';
+
+  document.getElementById('contract-banner').innerHTML = `
+    <div class="${bannerClass}">
+      <div class="contract-countdown">${countdownText}</div>
+      <div style="flex:1">
+        <div style="font-size:.75rem;color:#6b7280;font-weight:600;margin-bottom:.35rem">สัญญา Microsoft 365</div>
+        <div class="contract-dates">
+          <span class="date-val">${fmtThaiDate(contract.start)}</span>
+          <span class="arrow">→</span>
+          <span class="date-val">${fmtThaiDate(contract.end)}</span>
+        </div>
+        <div style="margin-top:.35rem">${badge}</div>
+        ${urgentNote}
+      </div>
+    </div>`;
+}
+
+// ---- Dashboard ----
+function renderDashboard() {
+  renderContractBanner();
+  const emps = LS.get('m365_employees', []);
+  const total = emps.length;
+  const active = emps.filter(e => e.status === 'ใช้งานอยู่').length;
+  const inactive = emps.filter(e => e.status === 'ออกแล้วแต่ยังใช้งาน').length;
+  const vacant = emps.filter(e => e.status === 'พร้อมใช้งาน').length;
+  const costYear = emps.filter(e => e.status !== 'พร้อมใช้งาน').reduce((s, e) => s + (e.price||0), 0);
+  const costMonth = Math.round(costYear / 12);
+  const wasteYear = emps.filter(e => e.status === 'ออกแล้วแต่ยังใช้งาน').reduce((s, e) => s + (e.price||0), 0);
+
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="kpi-card purple"><div class="label">ใบอนุญาตทั้งหมด</div><div class="value">${fmt(total)}</div><div class="sub">รายการ</div></div>
+    <div class="kpi-card green"><div class="label">ใช้งานอยู่</div><div class="value">${fmt(active)}</div><div class="sub">ใบอนุญาต</div></div>
+    <div class="kpi-card amber"><div class="label">ออกแล้วแต่ยังใช้งาน</div><div class="value">${fmt(inactive)}</div><div class="sub">ใบอนุญาต</div></div>
+    <div class="kpi-card blue"><div class="label">ว่าง (พร้อมใช้งาน)</div><div class="value">${fmt(vacant)}</div><div class="sub">ใบอนุญาต</div></div>
+    <div class="kpi-card purple"><div class="label">ค่าใช้จ่าย/เดือน</div><div class="value">${fmt(costMonth)}</div><div class="sub">บาท</div></div>
+    <div class="kpi-card green"><div class="label">ค่าใช้จ่าย/ปี</div><div class="value">${fmt(costYear)}</div><div class="sub">บาท</div></div>
+    <div class="kpi-card red"><div class="label">สูญเปล่า/ปี</div><div class="value">${fmt(wasteYear)}</div><div class="sub">บาท</div></div>`;
+
+  // Charts
+  const depts = [...new Set(emps.map(e => e.dept))].sort();
+  const deptCost = depts.map(d => emps.filter(e => e.dept===d && e.status!=='พร้อมใช้งาน').reduce((s,e)=>s+(e.price||0),0));
+  const deptUsers = depts.map(d => emps.filter(e => e.dept===d).length);
+
+  const licNames = [...new Set(emps.map(e => e.license))];
+  const licCounts = licNames.map(l => emps.filter(e => e.license===l).length);
+
+  const statusLabels = ['ใช้งานอยู่','ออกแล้วแต่ยังใช้งาน','พร้อมใช้งาน'];
+  const statusCounts = statusLabels.map(s => emps.filter(e => e.status===s).length);
+  const PALETTE = ['#7c3aed','#a855f7','#c084fc','#e879f9','#f0abfc','#ddd6fe','#818cf8','#6366f1','#4f46e5','#4338ca'];
+
+  function mkChart(id, type, labels, data, colors, clickFn) {
+    if (charts[id]) { charts[id].destroy(); }
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+    const opts = {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: (type!=='bar'), position:'bottom', labels:{font:{size:10}, boxWidth:10} } },
+      scales: type==='bar' ? {
+        x: { ticks: { font:{size:9}, maxRotation:45 } },
+        y: { ticks: { font:{size:9}, callback: v => fmt(v) } }
+      } : {}
+    };
+    if (clickFn) {
+      opts.onClick = (event, elements) => {
+        if (elements.length > 0) clickFn(labels[elements[0].index]);
+      };
+      opts.onHover = (event, elements) => {
+        event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+      };
+    }
+    charts[id] = new Chart(ctx, {
+      type,
+      data: { labels, datasets: [{ data, backgroundColor: colors || PALETTE, borderWidth:1, borderColor:'#fff' }] },
+      options: opts
+    });
+  }
+  mkChart('chart-cost-dept','bar', depts, deptCost, PALETTE, lbl => navigateToDept(lbl));
+  mkChart('chart-license-dist','doughnut', licNames, licCounts, ['#2563eb','#7c3aed','#16a34a','#d97706']);
+  mkChart('chart-users-dept','bar', depts, deptUsers, PALETTE);
+  mkChart('chart-status-dist','pie', statusLabels, statusCounts, ['#16a34a','#d97706','#4338ca']);
+}
+
+// ---- Employees ----
+let empFiltered = [];
+
+function populateFilterDropdowns() {
+  const emps = LS.get('m365_employees', []);
+  const depts = [...new Set(emps.map(e=>e.dept))].sort();
+  const lics = [...new Set(emps.map(e=>e.license))].sort();
+  const dSel = document.getElementById('filter-dept');
+  const lSel = document.getElementById('filter-license');
+  dSel.innerHTML = '<option value="">-- แผนกทั้งหมด --</option>' + depts.map(d=>`<option value="${escHtml(d)}">${escHtml(d)}</option>`).join('');
+  lSel.innerHTML = '<option value="">-- License ทั้งหมด --</option>' + lics.map(l=>`<option value="${escHtml(l)}">${escHtml(l)}</option>`).join('');
+}
+
+function renderEmployees() {
+  populateFilterDropdowns();
+  filterEmployees();
+}
+
+function filterEmployees() {
+  const q = (document.getElementById('search-input').value || '').toLowerCase();
+  const dept = document.getElementById('filter-dept').value;
+  const status = document.getElementById('filter-status').value;
+  const lic = document.getElementById('filter-license').value;
+  const emps = LS.get('m365_employees', []);
+  empFiltered = emps.filter(e => {
+    if (q && !e.name.toLowerCase().includes(q) && !e.email.toLowerCase().includes(q)) return false;
+    if (dept && e.dept !== dept) return false;
+    if (status && e.status !== status) return false;
+    if (lic && e.license !== lic) return false;
+    return true;
+  });
+  empFiltered.sort((a, b) => {
+    const aV = a.status === 'พร้อมใช้งาน';
+    const bV = b.status === 'พร้อมใช้งาน';
+    if (aV !== bV) return aV ? 1 : -1;
+    if (aV && bV) return (a.no || 0) - (b.no || 0);
+    return (a.name || '').localeCompare(b.name || '', 'th');
+  });
+  document.getElementById('record-count').textContent = `แสดง ${empFiltered.length} / ${emps.length} รายการ`;
+  const tbody = document.getElementById('emp-tbody');
+  if (!empFiltered.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">ไม่พบข้อมูล</td></tr>';
+    return;
+  }
+  tbody.innerHTML = empFiltered.map((e, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td><strong>${escHtml(e.name)}</strong></td>
+      <td style="font-size:.8rem;color:#6b7280">${escHtml(e.email)}</td>
+      <td>${escHtml(e.dept)}</td>
+      <td style="font-size:.8rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(e.position)}">${escHtml(e.position||'-')}</td>
+      <td>${licenseBadge(e.license)}</td>
+      <td style="text-align:right">${fmt(e.price)}</td>
+      <td>${statusBadge(e.status)}</td>
+      <td>${e.year||''}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick="openEditEmp('${escHtml(e.id)}')">${e.status === 'พร้อมใช้งาน' ? 'กำหนด' : 'แก้ไข'}</button>
+        ${e.status !== 'พร้อมใช้งาน' ? `<button class="btn btn-danger btn-sm" onclick="deleteEmp('${escHtml(e.id)}')">นำออก</button>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+document.getElementById('search-input').addEventListener('input', filterEmployees);
+document.getElementById('filter-dept').addEventListener('change', filterEmployees);
+document.getElementById('filter-status').addEventListener('change', filterEmployees);
+document.getElementById('filter-license').addEventListener('change', filterEmployees);
+
+// ---- Employee Modal ----
+let editingEmpId = null;
+
+function openAddEmp() {
+  editingEmpId = null;
+  document.getElementById('modal-emp-title').textContent = 'เพิ่มพนักงาน';
+  const form = document.getElementById('form-emp');
+  form.reset();
+  populateEmpModalDropdowns();
+  document.getElementById('emp-price').value = '';
+  openModal('modal-emp');
+}
+
+function openEditEmp(id) {
+  const emps = LS.get('m365_employees', []);
+  const emp = emps.find(e => e.id === id);
+  if (!emp) return;
+  editingEmpId = id;
+  document.getElementById('modal-emp-title').textContent = emp.status === 'พร้อมใช้งาน' ? `กำหนดพนักงาน — License #${emp.no}` : 'แก้ไขพนักงาน';
+  populateEmpModalDropdowns(emp.license);
+  const form = document.getElementById('form-emp');
+  form.name.value = emp.name || '';
+  form.email.value = emp.email || '';
+  form.dept.value = emp.dept || '';
+  form.position.value = emp.position || '';
+  form.license.value = emp.license || '';
+  form.price.value = emp.price || '';
+  form.status.value = emp.status || 'ใช้งานอยู่';
+  form.year.value = emp.year || 2569;
+  openModal('modal-emp');
+}
+
+function populateEmpModalDropdowns(selectedLic) {
+  const depts = LS.get('m365_departments', []);
+  const lics = LS.get('m365_licenses', []);
+  const dSel = document.getElementById('emp-dept-select');
+  const lSel = document.getElementById('emp-license-select');
+  dSel.innerHTML = '<option value="">-- เลือกแผนก --</option>' + depts.map(d => `<option value="${escHtml(d)}">${escHtml(d)}</option>`).join('');
+  lSel.innerHTML = lics.map(l => `<option value="${escHtml(l.name)}" data-price="${l.price_per_year}" ${selectedLic===l.name?'selected':''}>${escHtml(l.name)} (${fmt(l.price_per_year)} บาท/ปี)</option>`).join('');
+  updateLicensePrice();
+}
+
+function updateLicensePrice() {
+  const lSel = document.getElementById('emp-license-select');
+  const opt = lSel.options[lSel.selectedIndex];
+  document.getElementById('emp-price').value = opt ? (opt.dataset.price || '') : '';
+}
+
+document.getElementById('emp-license-select').addEventListener('change', updateLicensePrice);
+
+document.getElementById('form-emp').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const form = e.target;
+  const name = form.name.value.trim();
+  const email = form.email.value.trim();
+  if (!name || !email) { showToast('กรุณากรอกชื่อและอีเมล'); return; }
+  const emps = LS.get('m365_employees', []);
+  const now = new Date().toISOString();
+  const data = {
+    name, email,
+    dept: form.dept.value,
+    position: form.position.value.trim(),
+    license: form.license.value,
+    price: Number(form.price.value) || 0,
+    status: form.status.value,
+    year: Number(form.year.value) || 2569,
+    updated_at: now
+  };
+  if (editingEmpId) {
+    const idx = emps.findIndex(e => e.id === editingEmpId);
+    if (idx >= 0) {
+      const old = emps[idx];
+      const changes = Object.keys(data).filter(k => String(old[k]) !== String(data[k])).map(k => `${k}: ${old[k]} → ${data[k]}`).join(', ');
+      emps[idx] = {...old, ...data};
+      addAuditLog('EDIT','employee', editingEmpId, name, changes);
+    }
+  } else {
+    // ใช้ slot ว่างก่อน ถ้าไม่มีถึงสร้าง License ใหม่
+    const vacantIdx = emps.findIndex(e => e.status === 'พร้อมใช้งาน');
+    if (vacantIdx >= 0) {
+      const old = emps[vacantIdx];
+      emps[vacantIdx] = {...old, ...data, updated_at: now};
+      addAuditLog('ADD','employee', old.id, name, `กำหนด License #${old.no} (เดิมว่าง) ให้กับพนักงานใหม่`);
+      LS.set('m365_employees', emps);
+      closeModal('modal-emp');
+      renderEmployees();
+      showToast('เพิ่มพนักงานสำเร็จ — ใช้ License ว่าง #' + old.no);
+      return;
+    }
+    // ไม่มี slot ว่าง — เพิ่ม License ใหม่
+    const maxNo = emps.reduce((m,e)=>Math.max(m,e.no||0),0);
+    const newEmp = { id: uid(), no: maxNo+1, created_at: now, ...data };
+    emps.push(newEmp);
+    addAuditLog('ADD','employee', newEmp.id, name, `เพิ่ม License ใหม่ #${newEmp.no} (License รวมทั้งหมด ${emps.length})`);
+    LS.set('m365_employees', emps);
+    closeModal('modal-emp');
+    renderEmployees();
+    showToast('เพิ่มพนักงานสำเร็จ — เพิ่ม License ใหม่ (รวม ' + emps.length + ' License)');
+    return;
+  }
+  LS.set('m365_employees', emps);
+  closeModal('modal-emp');
+  renderEmployees();
+  showToast('แก้ไขข้อมูลสำเร็จ');
+});
+
+function deleteEmp(id) {
+  const emps = LS.get('m365_employees', []);
+  const emp = emps.find(e => e.id === id);
+  if (!emp) return;
+  if (!confirm(`นำ "${emp.name}" ออกจาก License?\n\nเนื่องจาก License ซื้อรายปีลดไม่ได้ License นี้จะเปลี่ยนเป็น "พร้อมใช้งาน" และยังคงนับในจำนวนรวม`)) return;
+  const idx = emps.findIndex(e => e.id === id);
+  const oldName = emp.name;
+  emps[idx] = {
+    ...emp,
+    name: '', email: '', position: '', dept: '',
+    status: 'พร้อมใช้งาน',
+    updated_at: new Date().toISOString()
+  };
+  LS.set('m365_employees', emps);
+  addAuditLog('DELETE','employee', id, oldName, `${oldName} ออกจาก License #${emp.no} — เปลี่ยนเป็น พร้อมใช้งาน (License คงอยู่)`);
+  renderEmployees();
+  showToast(`นำ ${oldName} ออกสำเร็จ — License #${emp.no} พร้อมใช้งาน`);
+}
+
+document.getElementById('btn-add-emp').addEventListener('click', openAddEmp);
+
+// ---- Settings ----
+function renderContractSettings() {
+  const contract = LS.get('m365_contract', { start: '2025-09-24', end: '2026-09-23' });
+  document.getElementById('contract-start-input').value = contract.start || '';
+  document.getElementById('contract-end-input').value = contract.end || '';
+  const days = calcDaysRemaining(contract.end);
+  const isExpired = days < 0;
+  const isUrgent = !isExpired && days <= 60;
+  const color = isExpired ? '#7f1d1d' : isUrgent ? '#dc2626' : '#16a34a';
+  const label = isExpired ? `หมดสัญญาแล้ว ${Math.abs(days)} วัน`
+               : isUrgent ? `⚠️ เหลืออีก ${days} วัน — ควรต่อสัญญา`
+               : `เหลืออีก ${days} วัน`;
+  document.getElementById('contract-settings-preview').innerHTML =
+    `<span style="font-size:.85rem;font-weight:700;color:${color}">${label}</span>`;
+}
+
+document.getElementById('btn-save-contract').addEventListener('click', () => {
+  const start = document.getElementById('contract-start-input').value;
+  const end = document.getElementById('contract-end-input').value;
+  if (!start || !end) { showToast('กรุณากรอกวันเริ่มและวันหมดสัญญา'); return; }
+  if (new Date(end) <= new Date(start)) { showToast('วันหมดสัญญาต้องหลังวันเริ่มสัญญา'); return; }
+  LS.set('m365_contract', { start, end });
+  addAuditLog('EDIT', 'contract', '', 'Contract Dates', `อัปเดตวันสัญญา: ${fmtThaiDate(start)} → ${fmtThaiDate(end)}`);
+  renderContractSettings();
+  showToast('บันทึกวันสัญญาสำเร็จ');
+});
+
+function renderSettings() {
+  renderLicenseTable();
+  renderDeptList();
+  renderContractSettings();
+  renderRenewSummary();
+}
+
+function renderLicenseTable() {
+  const lics = LS.get('m365_licenses', []);
+  document.getElementById('license-tbody').innerHTML = lics.map(l => `
+    <tr>
+      <td><strong>${escHtml(l.name)}</strong></td>
+      <td style="text-align:right">${fmt(l.price_per_year)}</td>
+      <td><span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:${escHtml(l.color)};border:2px solid #e5e7eb"></span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick="openEditLicense('${escHtml(l.id)}')">แก้ไข</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteLicense('${escHtml(l.id)}')">ลบ</button>
+      </td>
+    </tr>`).join('');
+}
+
+function renderDeptList() {
+  const depts = LS.get('m365_departments', []);
+  document.getElementById('dept-list').innerHTML = depts.length ? depts.map((d,i) => `
+    <div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid #f3f4f6">
+      <span style="flex:1;font-size:.875rem">${escHtml(d)}</span>
+      <button class="btn btn-danger btn-sm" onclick="deleteDept(${i})">ลบ</button>
+    </div>`).join('') : '<div style="color:#9ca3af;font-size:.875rem">ยังไม่มีแผนก</div>';
+}
+
+let editingLicId = null;
+
+function openAddLicense() {
+  editingLicId = null;
+  document.getElementById('modal-license-title').textContent = 'เพิ่ม License';
+  document.getElementById('form-license').reset();
+  document.querySelector('#form-license [name=color]').value = '#7c3aed';
+  openModal('modal-license');
+}
+
+function openEditLicense(id) {
+  const lics = LS.get('m365_licenses', []);
+  const lic = lics.find(l => l.id === id);
+  if (!lic) return;
+  editingLicId = id;
+  document.getElementById('modal-license-title').textContent = 'แก้ไข License';
+  const form = document.getElementById('form-license');
+  form.name.value = lic.name;
+  form.price_per_year.value = lic.price_per_year;
+  form.color.value = lic.color || '#7c3aed';
+  openModal('modal-license');
+}
+
+function deleteLicense(id) {
+  if (!confirm('ต้องการลบ License นี้?')) return;
+  const lics = LS.get('m365_licenses', []);
+  const lic = lics.find(l => l.id === id);
+  LS.set('m365_licenses', lics.filter(l => l.id !== id));
+  if (lic) addAuditLog('DELETE','license', id, lic.name, '');
+  renderLicenseTable();
+  showToast('ลบ License สำเร็จ');
+}
+
+document.getElementById('btn-add-license').addEventListener('click', openAddLicense);
+
+document.getElementById('form-license').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const form = e.target;
+  const name = form.name.value.trim();
+  const price = Number(form.price_per_year.value);
+  if (!name) { showToast('กรุณากรอกชื่อ License'); return; }
+  const lics = LS.get('m365_licenses', []);
+  if (editingLicId) {
+    const idx = lics.findIndex(l => l.id === editingLicId);
+    if (idx >= 0) { lics[idx] = {...lics[idx], name, price_per_year: price, color: form.color.value}; addAuditLog('EDIT','license', editingLicId, name, ''); }
+  } else {
+    const newLic = { id: uid(), name, price_per_year: price, color: form.color.value };
+    lics.push(newLic);
+    addAuditLog('ADD','license', newLic.id, name, '');
+  }
+  LS.set('m365_licenses', lics);
+  closeModal('modal-license');
+  renderLicenseTable();
+  showToast(editingLicId ? 'แก้ไข License สำเร็จ' : 'เพิ่ม License สำเร็จ');
+});
+
+document.getElementById('btn-add-dept').addEventListener('click', () => {
+  const inp = document.getElementById('new-dept-input');
+  const val = inp.value.trim();
+  if (!val) return;
+  const depts = LS.get('m365_departments', []);
+  if (depts.includes(val)) { showToast('มีแผนกนี้แล้ว'); return; }
+  depts.push(val);
+  depts.sort();
+  LS.set('m365_departments', depts);
+  inp.value = '';
+  addAuditLog('ADD','department', val, val, '');
+  renderDeptList();
+  showToast('เพิ่มแผนกสำเร็จ');
+});
+
+function deleteDept(idx) {
+  const depts = LS.get('m365_departments', []);
+  if (!confirm(`ต้องการลบแผนก "${depts[idx]}"?`)) return;
+  const name = depts[idx];
+  depts.splice(idx, 1);
+  LS.set('m365_departments', depts);
+  addAuditLog('DELETE','department', name, name, '');
+  renderDeptList();
+  showToast('ลบแผนกสำเร็จ');
+}
+
+// ---- Import/Export ----
+let importRows = [];
+
+document.getElementById('file-import').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = new Uint8Array(ev.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      importRows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      showImportPreview();
+    } catch(err) { showToast('ไม่สามารถอ่านไฟล์ได้: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+});
+
+function showImportPreview() {
+  const preview = document.getElementById('import-preview');
+  const btn = document.getElementById('btn-do-import');
+  if (!importRows.length) { preview.innerHTML = '<p style="color:#dc2626;margin-top:.5rem">ไม่พบข้อมูลในไฟล์</p>'; btn.style.display='none'; return; }
+  const cols = Object.keys(importRows[0]);
+  const rows = importRows.slice(0, 10);
+  preview.innerHTML = `<p style="font-size:.8rem;color:#6b7280;margin:.5rem 0">แสดง ${rows.length} / ${importRows.length} แถวแรก</p>
+    <div class="preview-table-wrap"><table style="font-size:.75rem;min-width:100%;border-collapse:collapse">
+      <thead><tr>${cols.map(c=>`<th style="background:#f9fafb;padding:.3rem .5rem;border:1px solid #e5e7eb;white-space:nowrap">${escHtml(c)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td style="padding:.3rem .5rem;border:1px solid #e5e7eb;white-space:nowrap">${escHtml(String(r[c]||''))}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></div>`;
+  btn.style.display = 'block';
+}
+
+document.getElementById('btn-do-import').addEventListener('click', () => {
+  if (!importRows.length) return;
+  const emps = LS.get('m365_employees', []);
+  const now = new Date().toISOString();
+  let added = 0;
+  const maxNo = emps.reduce((m,e)=>Math.max(m,e.no||0),0);
+  importRows.forEach((row, i) => {
+    const name = String(row['name'] || row['ชื่อ'] || row['Name'] || '').trim();
+    const email = String(row['email'] || row['อีเมล'] || row['Email'] || '').trim();
+    if (!name && !email) return;
+    const dept = String(row['dept'] || row['แผนก'] || row['Dept'] || '').trim();
+    const position = String(row['position'] || row['ตำแหน่ง'] || '').trim();
+    const license = String(row['license'] || row['License'] || 'Basic').trim();
+    const price = Number(row['price'] || row['ราคา/ปี'] || 0);
+    const status = String(row['status'] || row['สถานะ'] || 'พร้อมใช้งาน').trim();
+    const year = Number(row['year'] || row['ปี'] || 2569);
+    emps.push({ id: uid(), no: maxNo+i+1, name, email, dept, position, license, price, status, year, created_at: now, updated_at: now });
+    added++;
+  });
+  LS.set('m365_employees', emps);
+  addAuditLog('IMPORT','employees', '', '', `นำเข้า ${added} รายการ`);
+  importRows = [];
+  document.getElementById('import-preview').innerHTML = '';
+  document.getElementById('btn-do-import').style.display = 'none';
+  showToast(`นำเข้าสำเร็จ ${added} รายการ`);
+});
+
+document.getElementById('btn-export-excel').addEventListener('click', () => {
+  const emps = LS.get('m365_employees', []);
+  const lics = LS.get('m365_licenses', []);
+  // Sheet 1: KPI Summary
+  const total = emps.length;
+  const active = emps.filter(e=>e.status==='ใช้งานอยู่').length;
+  const inactive = emps.filter(e=>e.status==='ออกแล้วแต่ยังใช้งาน').length;
+  const vacant = emps.filter(e=>e.status==='พร้อมใช้งาน').length;
+  const costYear = emps.filter(e=>e.status!=='พร้อมใช้งาน').reduce((s,e)=>s+(e.price||0),0);
+  const wasteYear = emps.filter(e=>e.status==='ออกแล้วแต่ยังใช้งาน').reduce((s,e)=>s+(e.price||0),0);
+  const kpiData = [
+    {รายการ:'ใบอนุญาตทั้งหมด', จำนวน:total},
+    {รายการ:'ใช้งานอยู่', จำนวน:active},
+    {รายการ:'ออกแล้วแต่ยังใช้งาน', จำนวน:inactive},
+    {รายการ:'ว่าง (พร้อมใช้งาน)', จำนวน:vacant},
+    {รายการ:'ค่าใช้จ่าย/ปี (บาท)', จำนวน:costYear},
+    {รายการ:'ค่าใช้จ่าย/เดือน (บาท)', จำนวน:Math.round(costYear/12)},
+    {รายการ:'สูญเปล่า/ปี (บาท)', จำนวน:wasteYear},
+  ];
+  // Sheet 2: Departments summary
+  const depts = [...new Set(emps.map(e=>e.dept))].sort();
+  const deptData = depts.map(d => {
+    const de = emps.filter(e=>e.dept===d);
+    return {
+      แผนก: d,
+      ทั้งหมด: de.length,
+      ใช้งานอยู่: de.filter(e=>e.status==='ใช้งานอยู่').length,
+      ออกแล้วแต่ยังใช้งาน: de.filter(e=>e.status==='ออกแล้วแต่ยังใช้งาน').length,
+      พร้อมใช้งาน: de.filter(e=>e.status==='พร้อมใช้งาน').length,
+      'ค่าใช้จ่าย/ปี': de.filter(e=>e.status!=='พร้อมใช้งาน').reduce((s,e)=>s+(e.price||0),0)
+    };
+  });
+  // Sheet 3: Employees
+  const empData = emps.map(e => ({No:e.no, ชื่อ:e.name, อีเมล:e.email, แผนก:e.dept, ตำแหน่ง:e.position||'', License:e.license, 'ราคา/ปี':e.price, สถานะ:e.status, ปี:e.year}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(kpiData), 'KPI Summary');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(deptData), 'Departments');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(empData), 'Employees');
+  XLSX.writeFile(wb, 'M365_License_Report.xlsx');
+  showToast('Export Excel สำเร็จ');
+});
+
+document.getElementById('btn-backup-json').addEventListener('click', () => {
+  const backup = {
+    employees: LS.get('m365_employees', []),
+    licenses: LS.get('m365_licenses', []),
+    departments: LS.get('m365_departments', []),
+    audit_log: LS.get('m365_audit_log', []),
+    exported_at: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'M365_Backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  showToast('Backup JSON สำเร็จ');
+});
+
+document.getElementById('file-restore').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!confirm('การ Restore จะแทนที่ข้อมูลทั้งหมด ต้องการดำเนินการ?')) { e.target.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.employees) LS.set('m365_employees', data.employees);
+      if (data.licenses) LS.set('m365_licenses', data.licenses);
+      if (data.departments) LS.set('m365_departments', data.departments);
+      if (data.audit_log) {
+        const log = LS.get('m365_audit_log', []);
+        log.unshift({id:uid(), action:'RESTORE', entity_type:'system', entity_id:'', entity_name:'', changes:'Restore from JSON', timestamp: new Date().toISOString()});
+        LS.set('m365_audit_log', log);
+      }
+      showToast('Restore สำเร็จ');
+    } catch(err) { showToast('ไม่สามารถอ่านไฟล์ได้: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ---- Audit Log ----
+function renderAuditLog() {
+  const filter = document.getElementById('audit-filter').value;
+  let log = LS.get('m365_audit_log', []);
+  if (filter) log = log.filter(l => l.action === filter);
+  document.getElementById('audit-count').textContent = `${log.length} รายการ`;
+  const list = document.getElementById('audit-list');
+  if (!log.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📋</div>ไม่มีประวัติการเปลี่ยนแปลง</div>';
+    return;
+  }
+  const iconMap = {ADD:'audit-add',EDIT:'audit-edit',DELETE:'audit-delete',IMPORT:'audit-add',RESTORE:'audit-edit'};
+  const emojiMap = {ADD:'➕',EDIT:'✏️',DELETE:'🗑️',IMPORT:'📥',RESTORE:'♻️'};
+  list.innerHTML = log.map(l => {
+    const ts = new Date(l.timestamp);
+    const dateStr = ts.toLocaleDateString('th-TH') + ' ' + ts.toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'});
+    return `<div class="audit-item">
+      <div class="audit-icon ${iconMap[l.action]||'audit-edit'}">${emojiMap[l.action]||'•'}</div>
+      <div class="audit-info">
+        <div class="title">${l.action} | ${escHtml(l.entity_type)} | ${escHtml(l.entity_name)}</div>
+        ${l.changes ? `<div style="font-size:.75rem;color:#4b5563;margin-top:.15rem">${escHtml(l.changes)}</div>` : ''}
+        <div class="meta">${dateStr}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('audit-filter').addEventListener('change', renderAuditLog);
+
+document.getElementById('btn-clear-audit').addEventListener('click', () => {
+  if (!confirm('ต้องการล้าง Audit Log ทั้งหมด?')) return;
+  LS.set('m365_audit_log', []);
+  renderAuditLog();
+  showToast('ล้าง Audit Log สำเร็จ');
+});
+
+// ---- Contract Renewal ----
+function getRenewStats() {
+  const emps = LS.get('m365_employees', []);
+  const total = emps.length;
+  const active = emps.filter(e => e.status === 'ใช้งานอยู่').length;
+  const inactive = emps.filter(e => e.status === 'ออกแล้วแต่ยังใช้งาน').length;
+  const vacant = emps.filter(e => e.status === 'พร้อมใช้งาน').length;
+  const occupied = active + inactive;
+  return { total, active, inactive, vacant, occupied, emps };
+}
+
+function renderRenewSummary() {
+  const { total, active, inactive, vacant, occupied } = getRenewStats();
+  document.getElementById('renew-summary').innerHTML = `
+    <div class="renew-stat"><span>License ทั้งหมด (ปีปัจจุบัน)</span><span class="val blue">${fmt(total)}</span></div>
+    <div class="renew-stat"><span>มีพนักงาน (ใช้งานอยู่ + ออกแล้วแต่ยังใช้งาน)</span><span class="val green">${fmt(occupied)}</span></div>
+    <div class="renew-stat"><span>พร้อมใช้งาน (ว่าง — ลบได้เมื่อต่อสัญญา)</span><span class="val amber">${fmt(vacant)}</span></div>`;
+}
+
+function openRenewModal() {
+  const { total, active, inactive, vacant, occupied } = getRenewStats();
+  document.getElementById('renew-modal-stats').innerHTML = `
+    <div class="renew-stat"><span>License ทั้งหมด (ปีปัจจุบัน)</span><span class="val blue">${fmt(total)}</span></div>
+    <div class="renew-stat"><span>มีพนักงาน (ลบไม่ได้)</span><span class="val green">${fmt(occupied)}</span></div>
+    <div class="renew-stat"><span>พร้อมใช้งาน (ลบได้)</span><span class="val amber">${fmt(vacant)}</span></div>`;
+  const inp = document.getElementById('renew-target');
+  inp.min = occupied;
+  inp.value = total;
+  document.getElementById('renew-hint').textContent = `ขั้นต่ำ ${fmt(occupied)} (จำนวนพนักงานทั้งหมด)`;
+  document.getElementById('renew-preview-box').innerHTML = '';
+  document.getElementById('btn-confirm-renew').disabled = true;
+  openModal('modal-renew');
+}
+
+document.getElementById('renew-target').addEventListener('input', function() {
+  const { total, occupied, vacant } = getRenewStats();
+  const target = parseInt(this.value) || 0;
+  const btn = document.getElementById('btn-confirm-renew');
+  const preview = document.getElementById('renew-preview-box');
+  const hint = document.getElementById('renew-hint');
+
+  if (target < occupied) {
+    hint.innerHTML = `<span style="color:#dc2626">⚠ ต้องมีอย่างน้อย ${fmt(occupied)} License (จำนวนพนักงานปัจจุบัน)</span>`;
+    btn.disabled = true;
+    preview.innerHTML = '';
+    return;
+  }
+  if (target > total) {
+    hint.innerHTML = `<span style="color:#6b7280">License ใหม่จะเพิ่มเมื่อเพิ่มพนักงาน (ไม่มีการเปลี่ยนแปลงใน step นี้)</span>`;
+    btn.disabled = false;
+    preview.innerHTML = `<div class="renew-preview">✅ ไม่มีการลบ License — จำนวนเป้าหมาย (${fmt(target)}) มากกว่าปัจจุบัน (${fmt(total)})<br>สามารถเพิ่ม License ใหม่ได้ตามต้องการระหว่างปี</div>`;
+    return;
+  }
+  const toRemove = total - target;
+  if (toRemove === 0) {
+    hint.innerHTML = `<span style="color:#16a34a">✅ จำนวนเท่าเดิม ไม่มีการเปลี่ยนแปลง</span>`;
+    btn.disabled = false;
+    preview.innerHTML = `<div class="renew-preview">ไม่มีการลบ License</div>`;
+    return;
+  }
+  if (toRemove > vacant) {
+    hint.innerHTML = `<span style="color:#dc2626">⚠ ต้องการลบ ${fmt(toRemove)} License แต่มี slot ว่างแค่ ${fmt(vacant)}</span>`;
+    btn.disabled = true;
+    preview.innerHTML = `<div class="renew-preview" style="background:#fee2e2;border-color:#fca5a5;color:#991b1b">ไม่สามารถลดได้ถึง ${fmt(target)} — ก่อนอื่นให้นำพนักงานออกจาก License ก่อน จนมี slot ว่างเพียงพอ</div>`;
+    return;
+  }
+  hint.innerHTML = `<span style="color:#d97706">จะลบ slot ว่าง ${fmt(toRemove)} รายการ</span>`;
+  btn.disabled = false;
+  // Preview which slots will be removed (last vacant first)
+  const emps = LS.get('m365_employees', []);
+  const vacantSlots = emps.filter(e => e.status === 'พร้อมใช้งาน').slice(-toRemove);
+  preview.innerHTML = `<div class="renew-preview">
+    <strong>Slots ที่จะถูกลบ (${toRemove} รายการ):</strong><br>
+    ${vacantSlots.map(e => `License #${e.no} | ${e.license} | ฿${fmt(e.price)}/ปี`).join('<br>')}
+  </div>`;
+});
+
+document.getElementById('btn-confirm-renew').addEventListener('click', () => {
+  const { total, occupied, vacant } = getRenewStats();
+  const target = parseInt(document.getElementById('renew-target').value) || 0;
+  if (target < occupied) return;
+
+  const emps = LS.get('m365_employees', []);
+  const toRemove = total - target;
+
+  if (toRemove <= 0) {
+    closeModal('modal-renew');
+    showToast('ไม่มีการเปลี่ยนแปลง — จำนวน License คงเดิม');
+    return;
+  }
+
+  // Remove last N vacant slots
+  let removed = 0;
+  const removedNos = [];
+  const newEmps = [];
+  const vacantIds = emps.filter(e => e.status === 'พร้อมใช้งาน').slice(-toRemove).map(e => e.id);
+  for (const e of emps) {
+    if (vacantIds.includes(e.id)) {
+      removedNos.push(e.no);
+      removed++;
+    } else {
+      newEmps.push(e);
+    }
+  }
+
+  // Re-sequence no
+  newEmps.forEach((e, i) => { e.no = i + 1; });
+  LS.set('m365_employees', newEmps);
+  addAuditLog('DELETE', 'contract-renewal', '', 'Contract Renewal',
+    `ต่อสัญญาปีถัดไป: ลด License จาก ${total} → ${target} | ลบ slot ว่าง ${removed} รายการ (#${removedNos.join(', #')})`);
+  closeModal('modal-renew');
+  renderSettings();
+  showToast(`ต่อสัญญาสำเร็จ — License เหลือ ${newEmps.length} รายการ`);
+});
+
+document.getElementById('btn-open-renew').addEventListener('click', openRenewModal);
+
+// ---- Modal helpers ----
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', function(e) {
+    if (e.target === this) closeModal(this.id);
+  });
+});
+
+// ---- Init ----
+function init() {
+  seedData();
+  renderDashboard();
+  renderEmployees();
+}
+
+init();
+</script>
+</body>
+</html>
